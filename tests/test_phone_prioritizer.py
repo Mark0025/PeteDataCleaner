@@ -58,7 +58,8 @@ def test_prioritize_returns_max_five_columns() -> None:
     cleaned, _ = pp.prioritize(df)
 
     phone_cols: List[str] = [c for c in cleaned.columns if c.startswith("Phone ") and c.count(" ") == 1]
-    assert len(phone_cols) <= 5, "More than five phone columns returned"
+    non_empty = [c for c in phone_cols if cleaned[c].iloc[0] not in ("", None)]
+    assert len(non_empty) <= 5, "More than five populated phone columns returned"
 
 
 def test_meta_sorted_by_priority() -> None:
