@@ -15,6 +15,7 @@ Frontend components should import and use this module.
 import os
 import json
 import pandas as pd
+from backend.utils import trailing_dot_cleanup as tdc
 from typing import List, Dict, Any, Optional, Tuple
 from rich.console import Console
 from rich.table import Table
@@ -80,10 +81,11 @@ class DataStandardizer:
         # Apply empty column filtering if enabled
         if self.empty_column_config.get('filter_empty_columns', True):
             threshold = self.empty_column_config.get('empty_column_threshold', 0.9)
-            # Simple empty column filtering
             df = df.loc[:, df.isnull().mean() < threshold]
             logger.info(f"Filtered columns with more than {threshold*100}% NaN/empty values")
-        
+
+        # Auto strip trailing .0 from numeric-like strings
+        df = tdc.clean_dataframe(df)
         return df
 
     @staticmethod
