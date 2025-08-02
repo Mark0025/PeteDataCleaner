@@ -1,0 +1,17 @@
+---
+description: Enforce “One plan → One branch → One PR” workflow (Approripolateye)
+globs: **/*
+alwaysApply: true
+---
+# 📐 Approripolateye Workflow Rule
+
+This rule guarantees steady, controlled progress:
+
+1. **Plan First** – Every change starts with a Markdown plan in `DEV_MAN/plans/current/`.  No code before plan approval.
+2. **One Branch per Plan** – Create a single branch named `<type>/<short-desc>` dedicated to that plan.  Do not mix tasks.
+3. **One PR per Branch** – Open a PR that links back to its plan (`Closes #<issue>` or plan filename).
+4. **CI / Push Protection** – PR must pass tests, lint, and secret scanning before merge.
+5. **Plan Archival** – Immediately after merge, move the plan to `plans/completed/` with `chore/plan-housekeeping` branch.
+6. **Sequential Work** – Begin the next plan only after the previous branch is merged.
+
+Following this rule ensures clear history, easy code reviews, and eliminates cross-task conflicts.
