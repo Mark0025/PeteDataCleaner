@@ -28,10 +28,13 @@ Key additions:
 ## ✅ Sequential Steps
 
 - [ ] 1. _Backend_ – move `clean_dataframe()` call into:
-     • `backend/utils/data_standardizer.load_upload_file`
-     • `frontend/components/file_selector.preview_table` (for immediate UI feedback)
-- [ ] 2. _Phone prioritization_ – add method `select_top_phone_columns(df)` in `backend/utils/phone_processor.py` returning cleaned & reordered DF with max 5 phone cols.
-- [ ] 3. Wire prioritization into DataPrepEditor init (after strip-.0).
+      • `backend/utils/data_standardizer.load_upload_file`
+      • `frontend/components/file_selector.preview_table` (for immediate UI feedback)
+- [ ] 2. _Phone prioritization util_ – create `backend/utils/phone_prioritizer.py` with `select_top_phone_columns(df)` returning cleaned & reordered DF (max 5 phones).
+- [ ] 3. _UI Button_ – add "📞 Prioritize Phones" button in Data Tools panel. Clicking it:
+      • Runs `select_top_phone_columns`.
+      • Shows preview dialog of original vs Pete slots.
+      • "Apply" saves new version in DataPrepEditor.
 - [ ] 4. _Hide Empty Columns_ – add checkbox “Hide Empty” in FileSelector; when checked, calls existing `filter_empty_columns()` util.
 - [ ] 5. _Export Buttons_ – in `frontend/components/standardized_preview_ui.py` add “Export Excel” & “Export CSV” buttons using pandas `to_excel` / `to_csv` with QFileDialog save prompt.
 - [ ] 6. _Map to Pete Headers_ – add final button in Preview UI that invokes existing mapping flow (`MainWindow.show_mapping_ui`).
