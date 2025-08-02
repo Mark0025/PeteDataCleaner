@@ -1,0 +1,57 @@
+# ----------------------------------------------
+# PeteDataCleaner Project .gitignore
+# ----------------------------------------------
+
+# === Python Artifacts ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# === Virtual Environments ===
+.venv/
+.env/
+
+# === Package Managers ===
+# uv / pip / poetry
+uv.lock
+poetry.lock
+requirements.txt
+
+# === Logs & Reports ===
+*.log
+logs/
+DEV_MAN/**/*.log
+
+# === Dataset / Uploads ===
+upload/
+*.csv
+*.xlsx
+*.xls
+*.json
+*.pickle
+*.pickle.gz
+
+# === IDE & Editor Config ===
+.vscode/
+.idea/
+*.sublime*
+.DS_Store
+
+# === Operating System Files ===
+Thumbs.db
+Desktop.ini
+
+# === Node / Frontend Artifacts ===
+node_modules/
+*.tsbuildinfo
+
+# === Build / Dist ===
+dist/
+build/
+
+# === Misc ===
+*.bak
+*.tmp
+*.swp
