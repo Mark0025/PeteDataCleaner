@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import List
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout
 from backend.utils.phone_prioritizer import PhoneMeta
-from backend.utils.phone_prioritizer.stats import status_counts as _status_counts
+
 
 class PhonePrioritizationDialog(QDialog):
     def __init__(self, meta: List[PhoneMeta], parent=None):
@@ -40,7 +40,13 @@ class PhonePrioritizationDialog(QDialog):
 
         # Summary counts label
         from PyQt5.QtWidgets import QLabel
-        status_counts = _status_counts(parent.master_df) if hasattr(parent, 'master_df') else {}
+        # Compute crude status distribution for info label
+        if hasattr(parent, 'master_df'):
+            status_counts = {
+                s.upper(): int(cnt) for s, cnt in parent.master_df.filter(regex=r"^Phone Status ").stack().value_counts().items()
+            }
+        else:
+            status_counts = {}
         sc_text = ", ".join(f"{k}: {v}" for k, v in status_counts.items())
         layout.addWidget(QLabel(f"Status counts: {sc_text}"))
 
