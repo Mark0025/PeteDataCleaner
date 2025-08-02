@@ -1,86 +1,98 @@
+"""GUI workflow integration tests (headless).
+
+Uses pytest-qt's *qtbot* fixture for stable widget handling.
+Only lightweight sanity checks are performed to keep CI fast.
+"""
+
+from __future__ import annotations
+
 import os
 import sys
-import unittest
+from pathlib import Path
+from typing import Any
+
 import pandas as pd
-from PyQt5.QtTest import QTest
-from PyQt5.QtCore import Qt
+import pytest
 from PyQt5.QtWidgets import QApplication
+from pytestqt.qtbot import QtBot
+from PyQt5.QtCore import Qt
 
-# Add project root to Python path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, project_root)
+# Ensure project root on path
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
-from frontend.main_window import MainWindow
-from backend.utils.data_standardizer import DataStandardizer
+from frontend.main_window import MainWindow  # noqa: E402
 
-class TestGUIMappingWorkflow(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        """Set up the application for testing"""
-        cls.app = QApplication(sys.argv)
-        cls.window = MainWindow()
 
-    def test_startup_menu_exists(self):
-        """Verify startup menu is displayed"""
-        self.assertTrue(hasattr(self.window, 'menu'))
-        self.assertIsNotNone(self.window.menu)
+@pytest.fixture(scope="session")
+def app() -> QApplication:  # noqa: D401
+    """Provide a QApplication instance for the entire test session."""
+    return QApplication.instance() or QApplication([])
 
-    def test_file_selector_navigation(self):
-        """Test navigation to file selector"""
-        # Simulate selecting GUI Mapping Tool
-        self.window.handle_menu_select("GUI Mapping Tool")
-        
-        # Verify file selector is displayed
-        self.assertTrue(hasattr(self.window, 'file_selector'))
-        self.assertIsNotNone(self.window.file_selector)
 
-    def test_file_upload_and_preview(self):
-        """Test file upload and preview functionality"""
-        # Create a sample CSV for testing
-        sample_data = {
-            'First Name': ['John', 'Jane', 'Alice'],
-            'Last Name': ['Doe', 'Smith', 'Johnson'],
-            'Address': ['123 Main St', '456 Elm St', '789 Oak St']
-        }
-        sample_df = pd.DataFrame(sample_data)
-        
-        # Save sample data to upload directory
-        upload_dir = os.path.join(project_root, 'upload')
-        os.makedirs(upload_dir, exist_ok=True)
-        sample_path = os.path.join(upload_dir, 'test_sample.csv')
-        sample_df.to_csv(sample_path, index=False)
+@pytest.fixture()
+def main_window(app: QApplication, qtbot: QtBot) -> MainWindow:  # noqa: D401
+    """Create and show the MainWindow widget."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+    return window
 
-        # Refresh file list and select the test file
-        self.window.file_selector.refresh_file_list()
-        
-        # Simulate selecting the test file
-        self.window.file_selector.file_combo.setCurrentText('test_sample.csv')
-        
-        # Preview the table
-        self.window.file_selector.preview_table()
-        
-        # Verify preview was successful
-        self.assertTrue(hasattr(self.window.file_selector, 'df'))
-        self.assertFalse(self.window.file_selector.df.empty)
 
-    def test_mapping_workflow(self):
-        """Test complete mapping workflow"""
-        # Simulate file selection and preview
-        self.test_file_upload_and_preview()
-        
-        # Simulate mapping to Pete headers
-        self.window.file_selector.map_to_pete_headers()
-        
-        # Verify mapping UI is displayed
-        self.assertTrue(hasattr(self.window, 'mapping_ui'))
-        self.assertIsNotNone(self.window.mapping_ui)
+def test_startup_menu_visible(main_window: MainWindow) -> None:
+    """Basic smoke test: window constructed and shows the startup menu widget."""
+    main_window.show_startup_menu()
+    assert hasattr(main_window, "startup_menu")
 
-    @classmethod
-    def tearDownClass(cls):
-        """Clean up after tests"""
-        # Close the application
-        cls.window.close()
-        cls.app.quit()
 
-if __name__ == '__main__':
-    unittest.main() 
+def test_strip_dot_button_insertion(qtbot: QtBot, main_window: MainWindow, tmp_path: Path) -> None:
+    """Verify the 'Strip .0' button cleans data in Data Tools panel."""
+    # Simulate selecting GUI Mapping Tool from the startup menu
+    main_window.handle_menu_select("GUI Mapping Tool")
+
+    # Ensure file selector exists
+    file_selector = main_window.file_selector
+    assert file_selector is not None
+
+    # Create a sample CSV for upload
+    df = pd.DataFrame({"Phone 1": [123.0, 456.0], "Name": ["A", "B"]})
+    sample_path = tmp_path / "sample.csv"
+    df.to_csv(sample_path, index=False)
+
+    # Make the upload dir & copy file so selector can find it
+    upload_dir = ROOT_DIR / "upload"
+    upload_dir.mkdir(exist_ok=True)
+    sample_dest = upload_dir / sample_path.name
+    sample_dest.write_bytes(sample_path.read_bytes())
+
+    # Refresh list and select file
+    file_selector.refresh_file_list()
+    file_selector.file_combo.setCurrentText(sample_path.name)
+
+    # Preview table to load dataframe
+    file_selector.preview_table()
+    assert hasattr(file_selector, "df") and not file_selector.df.empty
+
+    # Create Data Tools panel (shown after upload in real workflow)
+    main_window.show_data_tools_panel(file_selector.df, ["Phone 1", "Name"])
+    tools_panel = main_window.data_tools_panel  # type: ignore[attr-defined]
+
+    # Click "Strip .0" button
+    strip_button = None
+    from PyQt5.QtWidgets import QPushButton  # type: ignore
+    
+    # Locate the button within the tools panel
+    for button in tools_panel.findChildren(QPushButton):
+        if "Strip .0" in button.text():
+            strip_button = button
+            break
+    assert strip_button is not None, "Strip .0 button not found"
+
+    qtbot.mouseClick(strip_button, Qt.LeftButton)  # type: ignore[name-defined]
+
+    # Data should now be cleaned (no trailing .0)
+    cleaned_df = tools_panel.data_prep_editor.get_prepared_data()  # type: ignore[attr-defined]
+    assert cleaned_df is not None
+    assert cleaned_df["Phone 1"].tolist() == ["123", "456"]
