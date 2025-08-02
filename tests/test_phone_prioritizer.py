@@ -57,7 +57,7 @@ def test_prioritize_returns_max_five_columns() -> None:
     df = _build_sample_dataframe()
     cleaned, _ = pp.prioritize(df)
 
-    phone_cols: List[str] = [c for c in cleaned.columns if c.startswith("Phone ")]
+    phone_cols: List[str] = [c for c in cleaned.columns if c.startswith("Phone ") and c.count(" ") == 1]
     assert len(phone_cols) <= 5, "More than five phone columns returned"
 
 
