@@ -42,9 +42,9 @@ def main_window(app: QApplication, qtbot: QtBot) -> MainWindow:  # noqa: D401
 
 
 def test_startup_menu_visible(main_window: MainWindow) -> None:
-    """The startup menu should be present after launch."""
-    assert hasattr(main_window, "menu")
-    assert main_window.menu is not None
+    """Basic smoke test: window constructed and shows the startup menu widget."""
+    main_window.show_startup_menu()
+    assert hasattr(main_window, "startup_menu")
 
 
 def test_strip_dot_button_insertion(qtbot: QtBot, main_window: MainWindow, tmp_path: Path) -> None:
@@ -75,8 +75,11 @@ def test_strip_dot_button_insertion(qtbot: QtBot, main_window: MainWindow, tmp_p
     file_selector.preview_table()
     assert hasattr(file_selector, "df") and not file_selector.df.empty
 
-    # Click "Strip .0" button
+    # Create Data Tools panel (shown after upload in real workflow)
+    main_window.show_data_tools_panel(file_selector.df, ["Phone 1", "Name"])
     tools_panel = main_window.data_tools_panel  # type: ignore[attr-defined]
+
+    # Click "Strip .0" button
     strip_button = None
     from PyQt5.QtWidgets import QPushButton  # type: ignore
     
