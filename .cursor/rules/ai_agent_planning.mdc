@@ -1,0 +1,37 @@
+---
+description: 
+globs: DEV_MAN/ 
+alwaysApply: true
+---
+# AI Agent Planning and Execution Rule
+
+## Purpose
+Ensure that the AI agent always creates, visualizes, and reviews a clear, sequential plan in `/plans` before executing any feature, utility, or workflow. No code is to be written until the plan is approved by the user.
+
+## Rules
+- **Plan First:** Before any implementation, create a detailed plan in `/plans/current/{feature_or_utility}.md`.
+- **Visual Communication:** Always include a Mermaid diagram to visually represent the workflow or architecture.
+- **Sequential Steps:** List all steps in order, with checkboxes for tracking progress.
+- **User Review:** Wait for user review and approval of the plan before starting execution.
+- **Update Plans:** As work progresses, update the plan and mark completed steps.
+- **No Code Without Plan:** Do not write or execute code until the plan is created and approved.
+- **Self-Check:** If unsure about the process, refer to this rule and clarify with the user before proceeding.
+- **News Feed Style:** Present plans in a news feed style, with the newest plans at the top. When a plan is completed, label it as completed and move it to `/plans/completed/`.
+- **Changelog and Versioning:** Every plan must include a changelog, version indicator, and rationale for changes. All changes must be logged for traceability.
+- **Directory Hygiene:** Always check the current directory structure using shell commands like `ls -la` or `tree` (excluding build/node files) before creating or moving any files or folders. Never create duplicate `plans/` or other key directories. Always confirm the working directory and manage all planning in a single, clear location to avoid confusion and maintain project health.
+- **Terminal-First Search:** Prefer using terminal commands (`ls -la`, `tree` excluding node/build files) for searching directories, not GUI or Cursor features, as terminal is faster and more reliable for the user.
+- **Project Utility Focus:** Prefer building project-specific utilities to automate tasks and empower the agent, rather than relying on ad-hoc web searches or external tools. Strive for self-sufficiency and automation within the project.
+
+## Example Workflow
+1. User requests a new feature or utility.
+2. AI agent creates `/plans/current/{feature_or_utility}.md` with:
+   - Goal and scope
+   - Sequential steps (checkboxes)
+   - Mermaid diagram
+   - Status section
+   - Changelog, version, and rationale
+3. User reviews and approves the plan.
+4. AI agent executes the plan, updating it as work progresses.
+5. When a plan is completed, label it as completed, log the completion, and move it to `/plans/completed/`.
+6. All progress and issues are logged in `DEV_MAN/`.
+7. Always confirm directory structure before any file/folder operation.

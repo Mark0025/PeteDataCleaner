@@ -1,0 +1,191 @@
+
+---
+description: Git Best Practices with Automation Utility and Loguru Logging
+globs: **/*
+alwaysApply: true
+----
+# Git Best Practices and Workflow Rules
+
+These rules enforce consistent Git usage, branch protection, and integration with Loguru for logging, ensuring a clean and organized development workflow. They include a Python utility to automate Git operations and maintain separate backend, frontend, and master log files. The rules align with GitHub Education's Git Cheat Sheet and streamline GitHub Projects and Issues for task management, preparing for future CI/CD agent integration.
+
+## 1. Git Automation Utility
+- **Create a Python utility** to automate Git operations:
+  - File: `utils/git_automation.py`
+  - Purpose: Automate staging, committing, pushing, and branch management.
+  - Use Loguru for logging to `backend.log`, `frontend.log`, and `git_operations.log`.
+  - Example implementation:
+    ```python
+    from loguru import logger
+    import subprocess
+    import os
+
+    # Configure Loguru to write to separate logs
+    logger.add("logs/backend.log", filter=lambda record: "backend" in record["extra"], level="INFO")
+    logger.add("logs/frontend.log", filter=lambda record: "frontend" in record["extra"], level="INFO")
+    logger.add("logs/git_operations.log", level="INFO")
+
+    def run_git_command(command, log_context="general"):
+        """Run a Git command and log it."""
+        context = {"backend": "backend", "frontend": "frontend"}.get(log_context, "general")
+        logger.bind(context=context).info(f"Executing: {command}")
+        try:
+            result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+            logger.bind(context=context).success(f"Success: {result.stdout}")
+            return result
+        except subprocess.CalledProcessError as e:
+            logger.bind(context=context).error(f"Failed: {e.stderr}")
+            raise
+
+    def stage_and_commit(message, scope="general"):
+        """Stage and commit changes with a formatted message."""
+        run_git_command("git add .", scope)
+        formatted_message = f"{scope}: {message}"
+        run_git_command(f'git commit -m "{formatted_message}"', scope)
+
+    def push_to_branch(branch, scope="general"):
+        """Push changes to the specified branch."""
+        run_git_command(f"git push origin {branch}", scope)
+
+    def create_and_switch_branch(branch_name, scope="general"):
+        """Create and switch to a new branch."""
+        run_git_command(f"git checkout -b {branch_name}", scope)
+
+    # Example usage
+    if __name__ == "__main__":
+        os.makedirs("logs", exist_ok=True)
+        stage_and_commit("Add new feature", scope="backend")
+        push_to_branch("feat/new-feature", scope="backend")
+    ```
+- Place in `utils/git_automation.py` and reference as `@git_automation.py`.
+- Run utility for backend tasks (log to `backend.log`) and frontend tasks (log to `frontend.log`).
+- Master log (`git_operations.log`) captures all Git operations.
+
+## 2. Git Configuration
+- Configure user information:
+  - `git config --global user.name "Firstname Lastname"`
+  - `git config --global user.email "email@example.com"`
+- Enable command-line coloring: `git config --global color.ui auto`
+- Use meaningful commit messages: `[type](scope): Short description`
+  - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+  - Example: `feat(auth): Add user login endpoint`
+- Log configuration changes:
+  ```python
+  logger.info("Configured Git user: {name}", name="Firstname Lastname", extra={"context": "general"})
+  ```
+
+## 3. Repository Initialization and Cloning
+- Initialize: `git init`
+- Clone: `git clone https://github.com/username/repo.git`
+- Add remote: `git remote add origin https://github.com/username/repo.git`
+- Verify remote: `git remote -v`
+- Log operations:
+  ```python
+  logger.info("Cloned repository: {url}", url="https://github.com/username/repo.git", extra={"context": "general"})
+  ```
+
+## 4. Branching Strategy
+- Use descriptive branch names: `<type>/<feature-or-issue>` (e.g., `feat/login-page`, `fix/bug-123`)
+- Create branch: `git branch feature-name`
+- Switch branch: `git checkout feature-name` or `git switch feature-name`
+- Create and switch: `git checkout -b feature-name`
+- Automate with utility: `create_and_switch_branch("feat/login-page", scope="frontend")`
+- Keep `main` clean; only merge tested code.
+- Delete merged branches: `git branch -d feature-name`
+
+## 5. Committing Changes
+- Stage files: `git add filename` or `git add .`
+- Commit: `git commit -m "[type](scope): Description"`
+- Automate with utility: `stage_and_commit("Add login page", scope="frontend")`
+- View status: `git status`
+- Log operations:
+  ```python
+  logger.info("Staging files: {files}", files="filename", extra={"context": "backend"})
+  ```
+- Use `.gitignore` to exclude sensitive files (e.g., `.env`).
+
+## 6. Branch Protection Rules
+- Enforce on `main` and `develop`:
+  - Require pull requests (PRs) before merging.
+  - Require one approval from a code owner.
+  - Require passing tests via CI/CD.
+  - Prevent force pushes.
+  - Enable "Require status checks to pass."
+- Configure via GitHub Settings > Branches > Add branch protection rule.
+- Log protection setup:
+  ```python
+  logger.info("Configured branch protection for {branch}", branch="main", extra={"context": "general"})
+  ```
+
+## 7. Sharing and Updating
+- Push: `git push origin branch-name`
+- Automate: `push_to_branch("feat/new-feature", scope="backend")`
+- Pull: `git pull origin branch-name`
+- Fetch: `git fetch origin`
+- Pull before push: `git pull --rebase origin branch-name`
+- Log operations:
+  ```python
+  logger.success("Pushed to {branch}", branch="feature-name", extra={"context": "frontend"})
+  ```
+
+## 8. GitHub Projects and Issues
+- Use GitHub Projects for task tracking:
+  - Create project boards for sprints/features.
+  - Add issues with clear titles and descriptions.
+  - Link PRs to issues: `Closes #123`, `Fixes #456`.
+- Create issues for all changes with acceptance criteria.
+- Automate issue logging:
+  ```python
+  logger.info("Created issue: {title}", title="Add login endpoint", extra={"context": "backend"})
+  ```
+## 9. Managing History
+- View history: `git log --oneline --graph`
+- Undo changes: `git restore filename`
+- Revert commit: `git revert commit-hash`
+- Stash: `git stash`, apply with `git stash pop`
+- Log operations:
+  ```python
+  logger.warning("Stashed changes: {reason}", reason="branch switch", extra={"context": "general"})
+  ```
+
+## 10. CI/CD Integration for Future Agents
+- Use GitHub Actions for testing and code improvement:
+  - Run tests on feature branch pushes.
+  - Use linters/formatters (e.g., ESLint, Prettier).
+  - Log pipeline steps:
+    ```python
+    logger.success("Tests passed for commit: {hash}", hash="abc123", extra={"context": "general"})
+    ```
+- Future agents should:
+  - Suggest refactors based on code analysis.
+  - Auto-generate PR descriptions.
+  - Use Loguru logs for optimization suggestions.
+
+## 11. .gitignore
+- Exclude:
+  - Build artifacts: `node_modules/`, `dist/`
+  - Environment files: `.env`, `*.log` (except `logs/*.log`)
+  - IDE files: `.vscode/`, `.idea/`
+- Reference: `https://github.com/github/gitignore`
+
+## 12. Logging Setup
+- Maintain logs:
+  - Backend: `logs/backend.log`
+  - Frontend: `logs/frontend.log`
+  - Master: `logs/git_operations.log`
+- Configure in `git_automation.py` to filter logs by context.
+- Ensure logs are human-readable and include timestamps.
+
+## 13. Best Practices Summary
+- Use `git_automation.py` for all Git operations.
+- Keep commits small and focused.
+- Pull before pushing to avoid conflicts.
+- Use PRs linked to issues for code reviews.
+- Protect `main` and `develop` branches.
+- Log all operations with Loguru for traceability.
+- Organize tasks with GitHub Projects and Issues.
+- Prepare for CI/CD automation to enhance code quality.
+
+@gitignore-template
+@git_automation.py
+@express-service-template.ts
+@component-template.tsx

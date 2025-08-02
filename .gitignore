@@ -12,6 +12,7 @@ __pycache__/
 # === Virtual Environments ===
 .venv/
 .env/
+.env
 
 # === Package Managers ===
 # uv / pip / poetry

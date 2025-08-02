@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# uv Environment Management
+
+- Always use `uv python ...` to run scripts if you want to use the uv-managed environment.
+- If using an IDE, set the Python interpreter to `.venv/bin/python` in your project root.
+- Never mix system Python and uv `.venv` for the same project.
+- When switching between projects, always check which environment is active with `which python` or `python --version`.
+- If you install packages with `uv add ...`, they are only available in the uv `.venv`.
+- Document any environment-specific issues in DEV_MAN/logs for future reference.

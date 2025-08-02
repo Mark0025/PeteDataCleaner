@@ -1,0 +1,222 @@
+---
+description: 
+globs: .cursor
+alwaysApply: true
+---
+
+
+
+
+
+
+Core
+Rules
+Control how the Agent model behaves with reusable, scoped instructions.
+
+Rules provide system-level instructions to Agent and Inline Edit. Think of them as persistent context, preferences, or workflows for your projects.
+
+Cursor supports three types of rules:
+
+Project Rules
+Stored in .cursor/rules, version-controlled and scoped to your codebase.
+
+User Rules
+Global to your Cursor environment. Defined in settings and always applied.
+
+.cursorrules (Legacy)
+Still supported, but deprecated. Use Project Rules instead.
+
+​
+How rules work
+Large language models don’t retain memory between completions. Rules provide persistent, reusable context at the prompt level.
+
+When applied, rule contents are included at the start of the model context. This gives the AI consistent guidance for generating code, interpreting edits, or helping with workflows.
+
+Rule applied in context with chat
+Rules apply to Chat and Inline Edit. Active rules show in the Agent sidebar.
+
+​
+Project rules
+Project rules live in .cursor/rules. Each rule is a file and version-controlled. They can be scoped using path patterns, invoked manually, or included based on relevance. Subdirectories can include their own .cursor/rules directory scoped to that folder.
+
+Use project rules to:
+
+Encode domain-specific knowledge about your codebase
+Automate project-specific workflows or templates
+Standardize style or architecture decisions
+​
+Rule anatomy
+Each rule file is written in MDC (.mdc), a format supporting metadata and content. Control how rules are applied from the type dropdown which changes properties description, globs, alwaysApply.
+
+Rule Type	Description
+Always	Always included in model context
+Auto Attached	Included when files matching a glob pattern are referenced
+Agent Requested	Available to AI, which decides whether to include it. Must provide a description
+Manual	Only included when explicitly mentioned using @ruleName
+
+Copy
+
+Ask AI
+---
+description: RPC Service boilerplate
+globs: 
+alwaysApply: false
+---
+- Use our internal RPC pattern when defining services
+- Always use snake_case for service names.
+
+@service-template.ts
+Referenced files like @service-template.ts are included as additional context when the rule triggers.
+
+​
+Nested rules
+Organize rules by placing them in .cursor/rules directories throughout your project. Nested rules automatically attach when files in their directory are referenced.
+
+
+Copy
+
+Ask AI
+project/
+  .cursor/rules/        # Project-wide rules
+  backend/
+    server/
+      .cursor/rules/    # Backend-specific rules
+  frontend/
+    .cursor/rules/      # Frontend-specific rules
+​
+Creating a rule
+Create rules using the New Cursor Rule command or going to Cursor Settings > Rules. This creates a new rule file in .cursor/rules. From settings you can see all rules and their status.
+
+Comparison of concise vs long rules
+​
+Generating rules
+Generate rules directly in conversations using the /Generate Cursor Rules command. Useful when you’ve made decisions about agent behavior and want to reuse them.
+
+​
+Best practices
+Good rules are focused, actionable, and scoped.
+
+Keep rules under 500 lines
+Split large rules into multiple, composable rules
+Provide concrete examples or referenced files
+Avoid vague guidance. Write rules like clear internal docs
+Reuse rules when repeating prompts in chat
+​
+Examples
+Standards for frontend components and API validation
+
+This rule provides standards for frontend components:
+
+When working in components directory:
+
+Always use Tailwind for styling
+Use Framer Motion for animations
+Follow component naming conventions
+This rule enforces validation for API endpoints:
+
+In API directory:
+
+Use zod for all validation
+Define return types with zod schemas
+Export types generated from schemas
+Templates for Express services and React components
+
+This rule provides a template for Express services:
+
+Use this template when creating Express service:
+
+Follow RESTful principles
+Include error handling middleware
+Set up proper logging
+@express-service-template.ts
+
+This rule defines React component structure:
+
+React components should follow this layout:
+
+Props interface at top
+Component as named export
+Styles at bottom
+@component-template.tsx
+
+Automating development workflows and documentation generation
+
+This rule automates app analysis:
+
+When asked to analyze the app:
+
+Run dev server with npm run dev
+Fetch logs from console
+Suggest performance improvements
+This rule helps generate documentation:
+
+Help draft documentation by:
+
+Extracting code comments
+Analyzing README.md
+Generating markdown documentation
+Adding a new setting in Cursor
+
+First create a property to toggle in @reactiveStorageTypes.ts.
+
+Add default value in INIT_APPLICATION_USER_PERSISTENT_STORAGE in @reactiveStorageService.tsx.
+
+For beta features, add toggle in @settingsBetaTab.tsx, otherwise add in @settingsGeneralTab.tsx. Toggles can be added as <SettingsSubSection> for general checkboxes. Look at the rest of the file for examples.
+
+
+Copy
+
+Ask AI
+<SettingsSubSection
+				label="Your feature name"
+				description="Your feature description"
+				value={
+					vsContext.reactiveStorageService.applicationUserPersistentStorage
+						.myNewProperty ?? false
+				}
+				onChange={(newVal) => {
+					vsContext.reactiveStorageService.setApplicationUserPersistentStorage(
+						'myNewProperty',
+						newVal
+					);
+				}}
+			/>
+To use in the app, import reactiveStorageService and use the property:
+
+
+Copy
+
+Ask AI
+const flagIsEnabled = vsContext.reactiveStorageService.applicationUserPersistentStorage.myNewProperty
+Many examples available from providers and frameworks. Community-contributed rules are found across crowdsourced collections and repositories online.
+
+​
+User Rules
+User rules are global preferences defined in Cursor Settings → Rules that apply across all projects. They’re plain text and perfect for setting preferred communication style or coding conventions:
+
+
+Copy
+
+Ask AI
+Please reply in a concise style. Avoid unnecessary repetition or filler language.
+​
+.cursorrules (Legacy)
+The .cursorrules file in your project root is still supported but will be deprecated. We recommend migrating to Project Rules for more control, flexibility, and visibility.
+
+​
+FAQ
+Why isn't my rule being applied?
+
+Check the rule type. For Agent Requested, ensure a description is defined. For Auto Attached, ensure the file pattern matches referenced files.
+
+Can rules reference other rules or files?
+
+Yes. Use @filename.ts to include files in your rule’s context.
+
+Can I create a rule from chat?
+
+Yes, generate project rules from chat using the /Generate Cursor Rules command. If Memories are enabled, memories are generated automatically.
+
+Do rules impact Cursor Tab or other AI features?
+
+No. Rules only apply to Agent and Inline Edit
