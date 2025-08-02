@@ -7,6 +7,7 @@ Component for selecting and previewing data files from the upload directory.
 import os
 import shutil
 import pandas as pd
+from backend.utils import trailing_dot_cleanup as tdc
 from typing import Optional, Callable
 from loguru import logger
 
@@ -172,6 +173,8 @@ class FileSelector(BaseComponent):
                 QMessageBox.warning(self, 'Unsupported file', f'Unsupported file type: {ext}')
                 return
             
+            # Auto strip trailing .0
+            df = tdc.clean_dataframe(df)
             self.df = df
             self._display_preview(df)
             self.map_btn.setEnabled(True)
