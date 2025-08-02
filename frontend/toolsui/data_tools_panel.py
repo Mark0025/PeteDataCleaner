@@ -156,7 +156,8 @@ class DataToolsPanel(BaseComponent):
                 ("🔄 Transform", "Convert data types, formats", self._transform_data),
                 ("✅ Validate", "Check data quality, find issues", self._validate_data),
                 ("🏷️ Tag Columns", "Mark columns by type/purpose", self._tag_columns),
-                ("💾 Save Preset", f"Save {self.data_source}→Pete mapping preset", self._save_preset)
+                ("💾 Save Preset", f"Save {self.data_source}→Pete mapping preset", self._save_preset),
+                ("🚫 Strip .0", "Remove trailing .0 from numeric-like strings", self._strip_trailing_dot)
             ]
         )
         layout.addWidget(content_tools)
@@ -400,6 +401,19 @@ class DataToolsPanel(BaseComponent):
         """Transform data."""
         self.status_label.setText('🔄 Data transformation coming soon')
     
+    def _strip_trailing_dot(self):
+        """Strip trailing .0 from numeric-like strings across the dataframe."""
+        from backend.utils import trailing_dot_cleanup as tdc
+        current_df = self.data_prep_editor.get_prepared_data()
+        if current_df is None:
+            return
+        cleaned = tdc.clean_dataframe(current_df)
+        # Save version & refresh view
+        self.data_prep_editor.version_manager.save_version(cleaned, "Strip .0", "Removed trailing .0 from numeric-like strings")
+        self.data_prep_editor._refresh_data_view()
+
+        QMessageBox.information(self, "Trailing .0 Removed", "All numeric-like strings with trailing .0 have been cleaned.")
+
     def _validate_data(self):
         """Validate data."""
         self.status_label.setText('✅ Data validation coming soon')
