@@ -1,0 +1,49 @@
+---
+description: GitHub Planning & Workflow Best Practices for PeteDataCleaner
+globs: **/*
+alwaysApply: true
+---
+# 🚀 GitHub Planning Workflow Rules
+
+These rules standardize how we manage tasks, branches, and pull requests in the **PeteDataCleaner** project.
+
+## 1. Issues
+- **Every task begins with an Issue.**  Link your PR to its Issue using `Closes #<issue-number>`.
+- Label issues with one **type** (`feat`, `fix`, `chore`, `docs`, `test`, `refactor`) and optional **scope** labels (backend, frontend, utils, planning).
+- Use GitHub Projects (Board view) for sprint planning; move cards across columns (`Todo` ➜ `In Progress` ➜ `Review` ➜ `Done`).
+
+## 2. Branch Naming
+```
+<type>/<short-description>
+```
+Examples:
+- `feat/trailing-dot-cleanup`
+- `chore/plan-housekeeping`
+
+## 3. Pull Requests
+- PR title: `[type] scope: short description` e.g., `feat(utils): add trailing .0 cleanup`.
+- Checklist (add to PR description):
+  - [ ] Linked Issue / Plan reference
+  - [ ] Added/updated tests
+  - [ ] Updated docs / plans
+  - [ ] CI passes (ruff, pytest)
+  - [ ] Secrets scan passes
+- Assign at least one reviewer (code owner).
+
+## 4. Commit Messages
+Follow Conventional Commits: `type(scope): message`.
+
+## 5. CI / Push Protection
+- `pre-commit` hooks run ruff + pytest collection.
+- Secrets scanning must pass before push (GitHub Push Protection).
+
+## 6. Plans & Rules Integration
+- Every new feature/change must have a plan in `DEV_MAN/plans/current/` **before** implementation.
+- When a plan is completed, move it to `plans/completed/` on a dedicated housekeeping branch.
+- Reference plan ID or filename in the PR.
+
+## 7. Release Process
+- Use annotated tags `vX.Y.Z` on `main` for releases.
+- Draft release notes from merged PR titles.
+
+Adhering to these rules ensures reproducible, reviewable development and aligns with the broader AI Agent Planning Rule.
