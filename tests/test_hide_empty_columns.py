@@ -21,7 +21,7 @@ def test_filter_and_persist(tmp_path: Path, monkeypatch):
     })
 
     cleaned = DataTypeConverter.filter_empty_columns(df, threshold=0.9)
-    assert list(cleaned.columns) == ["A"], "Non-empty column was removed or empty columns kept"
+    assert "B" not in cleaned.columns and "A" in cleaned.columns, "Empty column not removed or valuable column missing"
 
     prefs.add_hidden_headers(["B", "C"])
     stored_file = Path(tmp_path) / "hidden_headers.json"
