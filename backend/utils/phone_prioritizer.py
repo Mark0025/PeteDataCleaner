@@ -34,6 +34,7 @@ CALL_TAG_RE = re.compile(r"call_a(\d{2})", re.I)
 class PhoneMeta:
     column: str
     number: str
+    tag: str
     status: str
     phone_type: str
     call_count: int
@@ -49,23 +50,49 @@ def _extract_call_count(tag_value: str) -> int:
     return 0
 
 
-def prioritize(df: pd.DataFrame, max_phones: int = 5) -> Tuple[pd.DataFrame, List[PhoneMeta]]:
-    """Return *(clean_df, meta_list)* with at most *max_phones* phone cols.
+from backend.utils.phone_processor import PhoneProcessor
 
-    Assumes REISift naming convention: Phone 1, Phone Status 1, Phone Type 1, Phone Tag 1 … up to 30.
+
+def prioritize(df: pd.DataFrame, max_phones: int = 5) -> Tuple[pd.DataFrame, List[PhoneMeta]]:
+    """Prioritize phones row-by-row and return *(clean_df, meta_list)*.
+
+    The cleaned DataFrame contains up to *max_phones* ``Phone N`` columns
+    reordered per record using :class:`backend.utils.phone_processor.PhoneProcessor`.
+
+    The returned ``meta_list`` is a global summary of the original phone columns
+    ranked by their **aggregate** priority across the whole dataset (highest
+    priority first).  This list is used purely for preview in the GUI dialog
+    and therefore does **not** need row-level granularity.
     """
+
+    # --- 1.  Apply per-row allocation using PhoneProcessor -----------------
+    processor = PhoneProcessor()
+    cleaned_df = processor.reorder_phone_allocation(df, max_phones=max_phones)
+
+    # --- 2.  Build preview metadata aggregated over the dataset -------------
     phone_entries: List[PhoneMeta] = []
     for i in range(1, 31):
         col = f"Phone {i}"
         if col not in df.columns:
             continue
-        status_val = str(df.get(f"Phone Status {i}", ""))
-        type_val = str(df.get(f"Phone Type {i}", ""))
-        tag_val = str(df.get(f"Phone Tag {i}", ""))
-        call_count = _extract_call_count(tag_val)
 
-        status_key = status_val.upper() if status_val else "UNKNOWN"
-        type_key = type_val.upper() if type_val else "UNKNOWN"
+        # Determine the most common status / type values for this column
+        status_series = df.get(f"Phone Status {i}")
+        status_val = (
+            status_series.mode().iat[0] if status_series is not None and not status_series.empty else "UNKNOWN"
+        )
+        type_series = df.get(f"Phone Type {i}")
+        type_val = (
+            type_series.mode().iat[0] if type_series is not None and not type_series.empty else "UNKNOWN"
+        )
+        tag_series = df.get(f"Phone Tag {i}")
+        tag_val = (
+            tag_series.mode().iat[0] if tag_series is not None and not tag_series.empty else ""
+        )
+
+        status_key = str(status_val).upper() if status_val else "UNKNOWN"
+        type_key = str(type_val).upper() if type_val else "UNKNOWN"
+        call_count = _extract_call_count(str(tag_val))
 
         base = STATUS_WEIGHT.get(status_key, 0)
         bonus = TYPE_BONUS.get(type_key, 0)
@@ -74,7 +101,8 @@ def prioritize(df: pd.DataFrame, max_phones: int = 5) -> Tuple[pd.DataFrame, Lis
         phone_entries.append(
             PhoneMeta(
                 column=col,
-                number="",  # placeholder, not used here
+                number=str(df[col].iloc[0]) if col in df.columns else "",
+                tag=str(tag_val),
                 status=status_key,
                 phone_type=type_key,
                 call_count=call_count,
@@ -82,25 +110,7 @@ def prioritize(df: pd.DataFrame, max_phones: int = 5) -> Tuple[pd.DataFrame, Lis
             )
         )
 
-    # Sort by priority DESC
     phone_entries.sort(key=lambda p: p.priority, reverse=True)
-    selected = phone_entries[:max_phones]
+    selected_meta = phone_entries[:max_phones]
 
-    # Build new dataframe
-    cleaned_df = df.copy()
-
-    # Drop all phone/type/status/tag columns first
-    cols_to_drop = []
-    for i in range(1, 31):
-        base = f"Phone {i}"
-        for suffix in ("", " Status", " Type", " Tag"):
-            col = f"Phone{suffix} {i}" if suffix else base
-            if col in cleaned_df.columns:
-                cols_to_drop.append(col)
-    cleaned_df.drop(columns=[c for c in cols_to_drop if c in cleaned_df.columns], inplace=True)
-
-    # Reinsert selected phones as Phone 1..N
-    for idx, meta in enumerate(selected, start=1):
-        cleaned_df[f"Phone {idx}"] = df[meta.column]
-
-    return cleaned_df, selected
+    return cleaned_df, selected_meta
