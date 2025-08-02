@@ -30,7 +30,7 @@ Key additions:
 - [ ] 1. _Backend_ – move `clean_dataframe()` call into:
      • `backend/utils/data_standardizer.load_upload_file`
      • `frontend/components/file_selector.preview_table` (for immediate UI feedback)
-- [ ] 2. _Phone prioritization util_ – create `backend/utils/phone_prioritizer.py` with `select_top_phone_columns(df)` returning cleaned & reordered DF (max 5 phones).
+- [x] 2. _Phone prioritization util_ – **Done** (`phone_prioritizer.py` + tests) — returns cleaned & reordered DF (max 5 phones).
 - [ ] 3. _UI Button_ – add "📞 Prioritize Phones" button in Data Tools panel. Clicking it:
      • Runs `select_top_phone_columns`.
      • Shows preview dialog of original vs Pete slots (now full 30-row table).
