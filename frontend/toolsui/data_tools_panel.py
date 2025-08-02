@@ -127,6 +127,7 @@ class DataToolsPanel(BaseComponent):
             "📋 Column Tools",
             [
                 ("🔗 Merge Columns", "Combine 2+ columns into one (e.g., Notes field)", self._merge_columns),
+                ("📞 Prioritize Phones", "Select best 5 phones for Pete", self._prioritize_phones),
                 ("👁️‍🗨️ Hide Columns", "Hide selected columns from view", self._hide_columns),
                 ("🚫 Hide Never-Map", "Auto-hide fields that won't map to Pete", self._hide_never_map),
                 ("✏️ Rename Column", "Rename a column", self._rename_column),
@@ -413,6 +414,22 @@ class DataToolsPanel(BaseComponent):
         self.data_prep_editor._refresh_data_view()
 
         QMessageBox.information(self, "Trailing .0 Removed", "All numeric-like strings with trailing .0 have been cleaned.")
+
+    def _prioritize_phones(self):
+        """Open dialog to prioritize phones and apply selection."""
+        from backend.utils import phone_prioritizer as pp  # lazy import to avoid heavy deps on startup
+        from frontend.dialogs.phone_prioritization_dialog import PhonePrioritizationDialog
+
+        current_df = self.data_prep_editor.get_prepared_data()
+        if current_df is None:
+            return
+        cleaned_df, meta = pp.prioritize(current_df)
+        dlg = PhonePrioritizationDialog(meta, self)
+        if dlg.exec_():
+            self.data_prep_editor.version_manager.save_version(
+                cleaned_df, "Prioritize Phones", "Selected top 5 phone numbers"
+            )
+            self.data_prep_editor._refresh_data_view()
 
     def _validate_data(self):
         """Validate data."""
