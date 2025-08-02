@@ -8,8 +8,8 @@ Appears immediately after file upload, before Pete mapping.
 import pandas as pd
 from typing import Dict, List, Any, Optional, Callable
 from PyQt5.QtWidgets import (
-    QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, 
-    QGroupBox, QGridLayout, QFrame, QSplitter, QTextEdit
+    QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout,
+    QGroupBox, QGridLayout, QFrame, QSplitter, QTextEdit, QMessageBox
 )
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import Qt, pyqtSignal
