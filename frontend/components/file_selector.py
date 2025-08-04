@@ -7,6 +7,7 @@ Component for selecting and previewing data files from the upload directory.
 import os
 import shutil
 import pandas as pd
+from backend.utils import trailing_dot_cleanup as tdc
 from typing import Optional, Callable
 from loguru import logger
 
@@ -65,14 +66,17 @@ class FileSelector(BaseComponent):
         self.file_combo.currentIndexChanged.connect(self.on_file_selected)
         self.layout.addWidget(self.file_combo)
         
-        # Upload and refresh buttons
+        # Upload / refresh / hide-empty
         button_layout = QHBoxLayout()
         self.upload_btn = QPushButton('Upload New CSV')
         self.refresh_btn = QPushButton('Refresh List')
+        self.hide_empty_chk = QPushButton('Hide Empty ≥90%')
+        self.hide_empty_chk.setCheckable(True)
         self.upload_btn.clicked.connect(self.upload_new_csv)
         self.refresh_btn.clicked.connect(self.refresh_file_list)
         button_layout.addWidget(self.upload_btn)
         button_layout.addWidget(self.refresh_btn)
+        button_layout.addWidget(self.hide_empty_chk)
         self.layout.addLayout(button_layout)
         
         # Status label
@@ -118,6 +122,8 @@ class FileSelector(BaseComponent):
             self.status_label.setText(f'Selected: {self.selected_file}')
             logger.info(f'Selected file: {self.selected_file}')
             self.preview_btn.setEnabled(True)
+            # ensure hide-empty checkbox resets
+            self.hide_empty_chk.setChecked(False)
             self.map_btn.setEnabled(False)
         else:
             self.selected_file = None
@@ -172,6 +178,17 @@ class FileSelector(BaseComponent):
                 QMessageBox.warning(self, 'Unsupported file', f'Unsupported file type: {ext}')
                 return
             
+            # Auto strip trailing .0
+            df = tdc.clean_dataframe(df)
+            # Optionally hide empty columns
+            if self.hide_empty_chk.isChecked():
+                from backend.utils.data_type_converter import DataTypeConverter
+                from backend.utils import preferences as prefs
+                before_cols = set(df.columns)
+                df = DataTypeConverter.filter_empty_columns(df, threshold=0.9)
+                removed = list(before_cols - set(df.columns))
+                if removed:
+                    prefs.add_hidden_headers(removed)
             self.df = df
             self._display_preview(df)
             self.map_btn.setEnabled(True)
