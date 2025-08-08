@@ -424,7 +424,7 @@ class DataToolsPanel(BaseComponent):
         if current_df is None:
             return
         cleaned_df, meta = pp.prioritize(current_df)
-        dlg = PhonePrioritizationDialog(meta, self)
+        dlg = PhonePrioritizationDialog(meta, current_df, self)
         if dlg.exec_():
             self.data_prep_editor.version_manager.save_version(
                 cleaned_df, "Prioritize Phones", "Selected top 5 phone numbers"
