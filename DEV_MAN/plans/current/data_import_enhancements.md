@@ -39,8 +39,8 @@ Key additions:
      • Histogram label shows distribution of statuses across dataset.
      • Manual override: user can pin rows to Pete slots via drag-drop or selection.
      • "Apply" saves new version in DataPrepEditor.
-- [ ] 4. _Hide Empty Columns_ – add checkbox “Hide Empty” in FileSelector; when checked, calls existing `filter_empty_columns()` util.
-- [ ] 5. _Export Buttons_ – in `frontend/components/standardized_preview_ui.py` add “Export Excel” & “Export CSV” buttons using pandas `to_excel` / `to_csv` with QFileDialog save prompt.
+- [x] 4. _Hide Empty Columns_ – **Done** (checkbox added to FileSelector; persists hidden headers).
+- [x] 5. _Export Buttons_ – **Done** (`standardized_preview_ui.py` provides CSV/XLSX export buttons).
 - [ ] 6. _Map to Pete Headers_ – add final button in Preview UI that invokes existing mapping flow (`MainWindow.show_mapping_ui`).
 - [ ] 7. Update / add unit tests:
      • phone prioritization logic (edge cases where <5 good phones).
