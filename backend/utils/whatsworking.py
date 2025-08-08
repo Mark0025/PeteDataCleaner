@@ -24,7 +24,7 @@ Output:
 
 import os
 import ast
-import datetime
+import pendulum
 import json
 import re
 import fnmatch
@@ -598,7 +598,7 @@ graph TD
 
     def generate_report(self) -> str:
         """Generate comprehensive markdown report"""
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = pendulum.now('America/Chicago').strftime("%Y-%m-%d %H:%M:%S")
         stats = self.generate_summary_stats()
         
         lines = [
@@ -774,9 +774,127 @@ graph TD
         
         return '\n'.join(lines)
 
+    def generate_pipeline_analysis_report(self) -> str:
+        """Generate a comprehensive pipeline analysis report with before/after metrics"""
+        timestamp = pendulum.now('America/Chicago').strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Run the pipeline analyzer
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            
+            from backend.utils.data_pipeline_analyzer import DataPipelineAnalyzer
+            analyzer = DataPipelineAnalyzer()
+            results = analyzer.run_full_analysis()
+            
+            lines = [
+                "# 🔍 Data Pipeline Analysis Report",
+                "",
+                f"**Generated:** {timestamp}",
+                f"**Dataset:** {results.get('dataset_file', 'Unknown')}",
+                "",
+                "---",
+                "",
+                "## 📊 Pipeline Performance Summary",
+                ""
+            ]
+            
+            # Before metrics
+            before = results.get('before_metrics', {})
+            lines.extend([
+                "### 🚫 Before Processing:",
+                f"- **Total Rows:** {before.get('total_rows', 0):,}",
+                f"- **Total Columns:** {before.get('total_columns', 0)}",
+                f"- **Phone Columns:** {len(before.get('phone_columns', []))}",
+                f"- **Trailing .0 Count:** {before.get('trailing_dot_count', 0):,}",
+                f"- **Sample Phone Numbers:** {', '.join(before.get('sample_phone_numbers', [])[:3])}",
+                ""
+            ])
+            
+            # After metrics
+            after = results.get('after_metrics', {})
+            effectiveness = after.get('prioritization_effectiveness', {})
+            lines.extend([
+                "### ✅ After Processing:",
+                f"- **Total Rows:** {after.get('total_rows', 0):,}",
+                f"- **Correct Numbers Selected:** {effectiveness.get('correct_numbers_selected', 0):,}",
+                f"- **Mobile Numbers Selected:** {effectiveness.get('mobile_numbers_selected', 0):,}",
+                f"- **Selection Quality Score:** {effectiveness.get('selection_quality_score', 0):.1f}%",
+                ""
+            ])
+            
+            # Status distribution
+            status_data = after.get('status_distribution', {})
+            if status_data:
+                lines.extend([
+                    "### 📊 Phone Status Distribution:",
+                    "| Status | Count | Percentage |",
+                    "|--------|-------|------------|"
+                ])
+                total_status = sum(status_data.values())
+                for status, count in status_data.items():
+                    percentage = (count / total_status * 100) if total_status > 0 else 0
+                    lines.append(f"| {status} | {count:,} | {percentage:.1f}% |")
+                lines.append("")
+            
+            # Type distribution
+            type_data = after.get('type_distribution', {})
+            if type_data:
+                lines.extend([
+                    "### 📱 Phone Type Distribution:",
+                    "| Type | Count | Percentage |",
+                    "|------|-------|------------|"
+                ])
+                total_type = sum(type_data.values())
+                for phone_type, count in type_data.items():
+                    percentage = (count / total_type * 100) if total_type > 0 else 0
+                    lines.append(f"| {phone_type} | {count:,} | {percentage:.1f}% |")
+                lines.append("")
+            
+            # Key improvements
+            lines.extend([
+                "## 🎯 Key Improvements Achieved",
+                "",
+                "### ⚡ Performance Improvements:",
+                f"- **Trailing .0 Cleanup:** {before.get('trailing_dot_count', 0):,} phone numbers cleaned",
+                f"- **Data Quality:** {effectiveness.get('selection_quality_score', 0):.1f}% quality score for phone selection",
+                f"- **Efficiency:** Automated prioritization of {effectiveness.get('correct_numbers_selected', 0):,} correct numbers",
+                ""
+            ])
+            
+            # Visualization info
+            viz_file = results.get('visualization_file', '')
+            if viz_file:
+                lines.extend([
+                    "## 📊 Visualization",
+                    "",
+                    f"Pipeline funnel visualization saved: `{viz_file}`",
+                    "",
+                    "The visualization shows:",
+                    "- Data flow through the pipeline stages",
+                    "- Phone status and type distributions", 
+                    "- Call history analysis",
+                    "- Prioritization effectiveness",
+                    ""
+                ])
+            
+            lines.extend([
+                "---",
+                "",
+                f"**Report generated by:** `backend/utils/whatsworking.py`",
+                f"**Timestamp:** {timestamp}",
+                ""
+            ])
+            
+            return '\n'.join(lines)
+            
+        except Exception as e:
+            return f"# ❌ Pipeline Analysis Failed\n\nError: {str(e)}\n\nTimestamp: {timestamp}"
+
     def generate_end_user_flow_report(self) -> str:
         """Generate an end-user focused report explaining the app flow and user experience"""
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = pendulum.now('America/Chicago').strftime("%Y-%m-%d %H:%M:%S")
         
         lines = [
             "# 🎯 Pete Data Cleaner - End User Experience Guide",
@@ -998,7 +1116,7 @@ graph TD
         os.makedirs(REPORTS_DIR, exist_ok=True)
         
         # Create timestamp and version
-        now = datetime.datetime.now()
+        now = pendulum.now('America/Chicago')
         timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
         date_only = now.strftime("%Y-%m-%d")
         
@@ -1022,12 +1140,41 @@ graph TD
         print(f"📋 Latest end-user guide: {latest_filename}")
         return filename
 
+    def save_pipeline_report(self, content: str) -> str:
+        """Save pipeline analysis report to DEV_MAN/whatsworking directory"""
+        os.makedirs(REPORTS_DIR, exist_ok=True)
+        
+        # Create timestamp and version
+        now = pendulum.now('America/Chicago')
+        timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+        date_only = now.strftime("%Y-%m-%d")
+        
+        # Generate version number for today
+        existing_files = [f for f in os.listdir(REPORTS_DIR) if f.startswith(f"PIPELINE_ANALYSIS_{date_only}")]
+        version = len(existing_files) + 1
+        
+        # Create versioned filename
+        filename = os.path.join(REPORTS_DIR, f"PIPELINE_ANALYSIS_{date_only}_v{version:02d}_{timestamp}.md")
+        
+        # Save main report
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        # Also save as latest
+        latest_filename = os.path.join(REPORTS_DIR, "LATEST_PIPELINE_ANALYSIS.md")
+        with open(latest_filename, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        print(f"🔍 Pipeline Analysis v{version} saved to: {filename}")
+        print(f"📋 Latest pipeline analysis: {latest_filename}")
+        return filename
+
     def save_report(self, content: str) -> str:
         """Save versioned report to DEV_MAN/whatsworking directory"""
         os.makedirs(REPORTS_DIR, exist_ok=True)
         
         # Create timestamp and version
-        now = datetime.datetime.now()
+        now = pendulum.now('America/Chicago')
         timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
         date_only = now.strftime("%Y-%m-%d")
         
@@ -1102,9 +1249,10 @@ def main():
         analyzer = CodebaseAnalyzer()
         analyzer.analyze_codebase()
         
-        # Generate both reports
+        # Generate all reports
         report = analyzer.generate_report()
         end_user_report = analyzer.generate_end_user_flow_report()
+        pipeline_report = analyzer.generate_pipeline_analysis_report()
         
         # Save main report
         filename = analyzer.save_report(report)
@@ -1112,9 +1260,13 @@ def main():
         # Save end-user report
         end_user_filename = analyzer.save_end_user_report(end_user_report)
         
+        # Save pipeline analysis report
+        pipeline_filename = analyzer.save_pipeline_report(pipeline_report)
+        
         print(f"\n📋 Analysis complete! Reports saved to:")
         print(f"   📊 Technical Report: {filename}")
         print(f"   🎯 End-User Guide: {end_user_filename}")
+        print(f"   🔍 Pipeline Analysis: {pipeline_filename}")
         print(f"🎯 Found {len(analyzer.analyses)} Python files across the codebase")
         
         # Quick summary

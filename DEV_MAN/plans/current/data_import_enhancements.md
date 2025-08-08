@@ -31,14 +31,14 @@ Key additions:
      • `backend/utils/data_standardizer.load_upload_file`
      • `frontend/components/file_selector.preview_table` (for immediate UI feedback)
 - [x] 2. _Phone prioritization util_ – **Done** (`phone_prioritizer.py` + tests) — returns cleaned & reordered DF (max 5 phones).
-- [ ] 3. _UI Button_ – add "📞 Prioritize Phones" button in Data Tools panel. Clicking it:
-     • Runs `select_top_phone_columns`.
-     • Shows preview dialog of original vs Pete slots (now full 30-row table).
-     • Weight-tuning controls (spin-boxes) let user customise STATUS, TYPE and CALL_COUNT weights live.
-     • "Show All 30" toggle to switch top-5/full view.
-     • Histogram label shows distribution of statuses across dataset.
-     • Manual override: user can pin rows to Pete slots via drag-drop or selection.
-     • "Apply" saves new version in DataPrepEditor.
+- [x] 3. _UI Button_ – **Done** ("📞 Prioritize Phones" button in Data Tools panel):
+     • ✅ Runs `prioritize()` function.
+     • ✅ Shows preview dialog with descriptive summary of phone statuses.
+     • ✅ "Show All 30" toggle to switch top-5/full view.
+     • ✅ Status counts and prioritization logic explained in dialog.
+     • ✅ "Apply" saves new version in DataPrepEditor with status feedback.
+     • ⏳ Weight-tuning controls (spin-boxes) for STATUS, TYPE and CALL_COUNT weights.
+     • ⏳ Manual override: user can pin rows to Pete slots via drag-drop or selection.
 - [x] 4. _Hide Empty Columns_ – **Done** (checkbox added to FileSelector; persists hidden headers).
 - [x] 5. _Export Buttons_ – **Done** (`standardized_preview_ui.py` provides CSV/XLSX export buttons).
 - [ ] 6. _Map to Pete Headers_ – add final button in Preview UI that invokes existing mapping flow (`MainWindow.show_mapping_ui`).
