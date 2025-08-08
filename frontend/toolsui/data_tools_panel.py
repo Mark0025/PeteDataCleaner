@@ -423,13 +423,24 @@ class DataToolsPanel(BaseComponent):
         current_df = self.data_prep_editor.get_prepared_data()
         if current_df is None:
             return
+            
+        # Count original phone columns
+        original_phone_cols = [col for col in current_df.columns if col.startswith('Phone ') and not any(suffix in col for suffix in [' Status', ' Type', ' Tag'])]
+        
         cleaned_df, meta = pp.prioritize(current_df)
         dlg = PhonePrioritizationDialog(meta, current_df, self)
         if dlg.exec_():
+            # Count remaining phone columns
+            remaining_phone_cols = [col for col in cleaned_df.columns if col.startswith('Phone ') and not any(suffix in col for suffix in [' Status', ' Type', ' Tag'])]
+            
             self.data_prep_editor.version_manager.save_version(
                 cleaned_df, "Prioritize Phones", "Selected top 5 phone numbers"
             )
             self.data_prep_editor._refresh_data_view()
+            
+            # Update status with clear feedback
+            reduced_count = len(original_phone_cols) - len(remaining_phone_cols)
+            self.status_label.setText(f'📞 Phone prioritization applied: {len(original_phone_cols)} → {len(remaining_phone_cols)} columns ({reduced_count} removed)')
 
     def _validate_data(self):
         """Validate data."""
