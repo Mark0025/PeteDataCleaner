@@ -40,7 +40,7 @@ def sample_meta() -> List[PhoneMeta]:
 
 def test_dialog_toggle_rows(qtbot, sample_meta):
     """Toggling the button should switch between 5-row and full-row views."""
-    dlg = PhonePrioritizationDialog(sample_meta)
+    dlg = PhonePrioritizationDialog(sample_meta, None)
     qtbot.addWidget(dlg)
     dlg.show()
 

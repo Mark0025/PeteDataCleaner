@@ -7,7 +7,7 @@ from backend.utils.phone_prioritizer import PhoneMeta
 
 
 class PhonePrioritizationDialog(QDialog):
-    def __init__(self, meta: List[PhoneMeta], parent=None):
+    def __init__(self, meta: List[PhoneMeta], source_df=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Phone Prioritization Preview")
         self.resize(600, 400)
@@ -15,6 +15,7 @@ class PhonePrioritizationDialog(QDialog):
         layout = QVBoxLayout(self)
         self.show_all = False  # start with top 5
         self.meta_all = meta
+        self.source_df = source_df
         rows_to_show = meta if self.show_all else meta[:5]
         table = QTableWidget(len(rows_to_show), 7)
         table.setHorizontalHeaderLabels([
@@ -38,17 +39,11 @@ class PhonePrioritizationDialog(QDialog):
         layout.addWidget(self.toggle_btn)
         self.toggle_btn.clicked.connect(self._toggle_rows)
 
-        # Summary counts label
+        # Descriptive summary -------------------------------------------
         from PyQt5.QtWidgets import QLabel
-        # Compute crude status distribution for info label
-        if hasattr(parent, 'master_df'):
-            status_counts = {
-                s.upper(): int(cnt) for s, cnt in parent.master_df.filter(regex=r"^Phone Status ").stack().value_counts().items()
-            }
-        else:
-            status_counts = {}
-        sc_text = ", ".join(f"{k}: {v}" for k, v in status_counts.items())
-        layout.addWidget(QLabel(f"Status counts: {sc_text}"))
+        summary_lbl = QLabel(self._build_summary())
+        summary_lbl.setWordWrap(True)
+        layout.addWidget(summary_lbl)
 
         btn_box = QHBoxLayout()
         self.apply_btn = QPushButton("Apply")
@@ -62,6 +57,32 @@ class PhonePrioritizationDialog(QDialog):
         self.cancel_btn.clicked.connect(self.reject)
 
         # Methods ---------------------------------------------------
+    def _build_summary(self) -> str:
+        """Return human-readable description of what will happen."""
+        if self.source_df is None:
+            return "Status counts: N/A"
+        import pandas as pd
+        stat_series = (
+            self.source_df.filter(regex=r"^Phone Status ")
+            .stack()
+            .dropna()
+            .astype(str)
+            .str.upper()
+        )
+        total_phones = len(stat_series)
+        counts = stat_series.value_counts()
+        parts = []
+        for key in ("CORRECT", "UNKNOWN", "NO_ANSWER", "WRONG", "DEAD", "DNC"):
+            if key in counts:
+                parts.append(f"{key}: {int(counts[key])}")
+        if not parts:
+            return "No status information found; prioritisation will use column order and phone type only."
+        summary = (
+            f"Detected {total_phones} phone entries – " + ", ".join(parts) +
+            ".  CORRECT numbers will move to Phone 1-5; WRONG/DEAD/DNC numbers will be excluded."
+        )
+        return summary
+
     def _toggle_rows(self):
         """Toggle between showing top 5 and all 30 rows."""
         self.show_all = not self.show_all
