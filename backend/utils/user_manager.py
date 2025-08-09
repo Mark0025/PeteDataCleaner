@@ -53,7 +53,13 @@ class UserManager:
     - Web-app-like dashboard interface
     """
     
-    def __init__(self, base_dir: str = "DEV_MAN/users"):
+    def __init__(self, base_dir: str = "data/users"):
+        """
+        Initialize the User Manager.
+        
+        Args:
+            base_dir: Base directory for storing user data (default: data/users)
+        """
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         
@@ -252,7 +258,31 @@ class UserManager:
         return {'status': 'Data quality metrics not available'}
     
     def _get_owner_analysis_summary(self) -> Dict[str, Any]:
-        """Get owner analysis summary from recent presets."""
+        """Get owner analysis summary from persistence manager or presets."""
+        try:
+            # Try to load from persistence manager first
+            from backend.utils.owner_persistence_manager import load_property_owners_persistent
+            owner_objects, enhanced_df = load_property_owners_persistent()
+            
+            if owner_objects:
+                return {
+                    'total_owners': len(owner_objects),
+                    'business_entities': len([obj for obj in owner_objects if obj.is_business_owner]),
+                    'multi_property_owners': len([obj for obj in owner_objects if obj.property_count > 1]),
+                    'high_confidence_targets': len([obj for obj in owner_objects if obj.confidence_score >= 0.8]),
+                    'total_properties': sum(obj.property_count for obj in owner_objects),
+                    'total_value': sum(obj.total_property_value for obj in owner_objects),
+                    'last_updated': '2025-08-09 13:44:00',
+                    'data_source': 'persistence_manager'
+                }
+        except Exception as e:
+            logger.warning(f"Could not load owner objects from persistence: {e}")
+        
+        # Fall back to preset data
+        return self._get_owner_analysis_from_presets()
+    
+    def _get_owner_analysis_from_presets(self) -> Dict[str, Any]:
+        """Get owner analysis summary from recent presets (fallback method)."""
         from backend.utils.preset_manager import PresetManager
         preset_manager = PresetManager()
         user_presets = preset_manager.list_presets()

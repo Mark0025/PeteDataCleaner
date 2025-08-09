@@ -373,17 +373,30 @@ def create_features_excel():
     
     summary_df = pd.DataFrame(summary_data)
     
-    # Create Excel file with multiple sheets
-    with pd.ExcelWriter('Pete_Data_Cleaner_Features.xlsx', engine='openpyxl') as writer:
-        # Main features sheet
-        df.to_excel(writer, sheet_name='Features', index=False)
-        
-        # Summary sheet
-        summary_df.to_excel(writer, sheet_name='Summary', index=False)
-        
-        # Categories summary
-        category_summary = df.groupby('Category').size().reset_index(name='Feature Count')
-        category_summary.to_excel(writer, sheet_name='Categories', index=False)
+    # Create Excel file with multiple sheets (use xlsxwriter for faster export)
+    try:
+        with pd.ExcelWriter('Pete_Data_Cleaner_Features.xlsx', engine='xlsxwriter') as writer:
+            # Main features sheet
+            df.to_excel(writer, sheet_name='Features', index=False)
+            
+            # Summary sheet
+            summary_df.to_excel(writer, sheet_name='Summary', index=False)
+            
+            # Categories summary
+            category_summary = df.groupby('Category').size().reset_index(name='Feature Count')
+            category_summary.to_excel(writer, sheet_name='Categories', index=False)
+    except ImportError:
+        # Fallback to openpyxl if xlsxwriter not available
+        with pd.ExcelWriter('Pete_Data_Cleaner_Features.xlsx', engine='openpyxl') as writer:
+            # Main features sheet
+            df.to_excel(writer, sheet_name='Features', index=False)
+            
+            # Summary sheet
+            summary_df.to_excel(writer, sheet_name='Summary', index=False)
+            
+            # Categories summary
+            category_summary = df.groupby('Category').size().reset_index(name='Feature Count')
+            category_summary.to_excel(writer, sheet_name='Categories', index=False)
     
     print(f"✅ Excel file created: Pete_Data_Cleaner_Features.xlsx")
     print(f"📊 Total features: {len(df)}")

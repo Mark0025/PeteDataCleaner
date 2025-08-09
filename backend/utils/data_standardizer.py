@@ -29,7 +29,7 @@ import numpy as np
 
 console = Console()
 
-MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'DEV_MAN', 'mappings'))
+MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'mappings'))
 RULES_PATH = os.path.join(MAPPINGS_DIR, 'mapping_rules.json')
 os.makedirs(MAPPINGS_DIR, exist_ok=True)
 

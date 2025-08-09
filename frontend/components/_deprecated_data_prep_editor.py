@@ -375,7 +375,7 @@ class DataPrepEditor(BaseComponent):
     def _load_never_map_rules(self) -> List[str]:
         """Load never map rules from mapping_rules.json"""
         try:
-            rules_path = os.path.join("DEV_MAN", "mappings", "mapping_rules.json")
+            rules_path = os.path.join("data", "mappings", "mapping_rules.json")
             if os.path.exists(rules_path):
                 with open(rules_path, 'r') as f:
                     rules = json.load(f)

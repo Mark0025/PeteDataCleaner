@@ -25,7 +25,13 @@ from backend.utils.owner_object_analyzer import OwnerObject, OwnerObjectAnalyzer
 class OwnerPersistenceManager:
     """Manages persistent storage of Property Owners data."""
     
-    def __init__(self, base_dir: str = "DEV_MAN/property_owners"):
+    def __init__(self, base_dir: str = "data/processed"):
+        """
+        Initialize the Owner Persistence Manager.
+        
+        Args:
+            base_dir: Base directory for storing data (default: data/processed)
+        """
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         
@@ -176,20 +182,64 @@ class OwnerPersistenceManager:
         
         self.logger.info(f"📊 Found {len(owner_object_columns)} Owner Object columns: {owner_object_columns}")
         
+        # Convert to pandas if it's a polars DataFrame
+        if hasattr(df, 'to_pandas'):
+            df_pandas = df.to_pandas()
+        else:
+            df_pandas = df
+        
         # Save as CSV
         csv_path = save_dir / "enhanced_data.csv"
-        df.to_csv(csv_path, index=False)
-        self.logger.info(f"✅ Saved full dataframe ({len(df):,} rows) to CSV: {csv_path}")
+        df_pandas.to_csv(csv_path, index=False)
+        self.logger.info(f"✅ Saved full dataframe ({len(df_pandas):,} rows) to CSV: {csv_path}")
+        
+        # Save as Excel (with smart engine selection)
+        excel_path = save_dir / "enhanced_data.xlsx"
+        try:
+            # Use xlsxwriter for faster export on large datasets
+            if len(df_pandas) > 10000:
+                df_pandas.to_excel(excel_path, index=False, engine='xlsxwriter')
+            else:
+                df_pandas.to_excel(excel_path, index=False, engine='openpyxl')
+            self.logger.info(f"✅ Saved full dataframe ({len(df_pandas):,} rows) to Excel: {excel_path}")
+        except ImportError:
+            # Fallback to openpyxl if xlsxwriter not available
+            try:
+                df_pandas.to_excel(excel_path, index=False, engine='openpyxl')
+                self.logger.info(f"✅ Saved full dataframe ({len(df_pandas):,} rows) to Excel: {excel_path}")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Could not save Excel file: {e}")
+                excel_path = None
+        except Exception as e:
+            self.logger.warning(f"⚠️ Could not save Excel file: {e}")
+            excel_path = None
         
         # Save sample (first 1000 rows)
         sample_path = save_dir / "enhanced_data_sample.csv"
-        df.head(1000).to_csv(sample_path, index=False)
+        df_pandas.head(1000).to_csv(sample_path, index=False)
         self.logger.info(f"✅ Saved sample dataframe (1,000 rows) to CSV: {sample_path}")
         
+        # Save sample as Excel
+        sample_excel_path = save_dir / "enhanced_data_sample.xlsx"
+        try:
+            df_pandas.head(1000).to_excel(sample_excel_path, index=False, engine='xlsxwriter')
+            self.logger.info(f"✅ Saved sample dataframe (1,000 rows) to Excel: {sample_excel_path}")
+        except ImportError:
+            # Fallback to openpyxl
+            try:
+                df_pandas.head(1000).to_excel(sample_excel_path, index=False, engine='openpyxl')
+                self.logger.info(f"✅ Saved sample dataframe (1,000 rows) to Excel: {sample_excel_path}")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Could not save sample Excel file: {e}")
+                sample_excel_path = None
+        except Exception as e:
+            self.logger.warning(f"⚠️ Could not save sample Excel file: {e}")
+            sample_excel_path = None
+        
         # Log sample of enhanced data
-        if len(df) > 0:
+        if len(df_pandas) > 0:
             self.logger.info(f"🎯 Sample enhanced data:")
-            sample_data = df.head(3)
+            sample_data = df_pandas.head(3)
             for i, (_, row) in enumerate(sample_data.iterrows(), 1):
                 seller1 = row.get('Seller_1', 'N/A')[:40]
                 skip_trace = row.get('Skip_Trace_Target', 'N/A')[:40]
@@ -203,12 +253,14 @@ class OwnerPersistenceManager:
         metadata = {
             'dataset_name': dataset_name,
             'saved_at': datetime.now().isoformat(),
-            'total_rows': len(df),
-            'total_columns': len(df.columns),
+            'total_rows': len(df_pandas),
+            'total_columns': len(df_pandas.columns),
             'owner_object_columns': owner_object_columns,
             'file_paths': {
-                'full_data': str(csv_path),
-                'sample_data': str(sample_path)
+                'full_data_csv': str(csv_path),
+                'full_data_excel': str(excel_path) if excel_path else None,
+                'sample_data_csv': str(sample_path),
+                'sample_data_excel': str(sample_excel_path) if sample_excel_path else None
             }
         }
         
@@ -216,7 +268,7 @@ class OwnerPersistenceManager:
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=2)
         
-        self.logger.info(f"✅ Saved enhanced dataframe ({len(df):,} rows) to {save_dir}")
+        self.logger.info(f"✅ Saved enhanced dataframe ({len(df_pandas):,} rows) to {save_dir}")
         self.logger.info(f"📁 Dataset saved as: {dataset_name}")
         
         return str(save_dir)

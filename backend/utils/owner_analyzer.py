@@ -732,4 +732,4 @@ if __name__ == "__main__":
     print(report)
     
     # Export data
-    analyzer.export_owner_data(results, 'DEV_MAN/owner_analysis_export.json') 
+    analyzer.export_owner_data(results, 'data/exports/owner_analysis_export.json') 

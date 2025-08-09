@@ -146,24 +146,46 @@ def main():
     
     print(f"\n💾 Exporting to: {output_path}")
     try:
-        with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-            # Main Pete-ready data
-            df_pete.to_excel(writer, sheet_name='Pete_Ready_Data', index=False)
-            
-            # Original data for reference
-            df_prioritized.to_excel(writer, sheet_name='Original_Processed', index=False)
-            
-            # Mapping summary
-            mapping_df = pd.DataFrame([
-                {
-                    'Upload_Column': col,
-                    'Pete_Header': pete_col or 'NOT MAPPED',
-                    'Confidence': f"{confidence:.0f}%",
-                    'Reason': reason
-                }
-                for col, (pete_col, confidence, reason) in mapping.items()
-            ])
-            mapping_df.to_excel(writer, sheet_name='Mapping_Summary', index=False)
+        # Use xlsxwriter for faster Excel export
+        try:
+            with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
+                # Main Pete-ready data
+                df_pete.to_excel(writer, sheet_name='Pete_Ready_Data', index=False)
+                
+                # Original data for reference
+                df_prioritized.to_excel(writer, sheet_name='Original_Processed', index=False)
+                
+                # Mapping summary
+                mapping_df = pd.DataFrame([
+                    {
+                        'Upload_Column': col,
+                        'Pete_Header': pete_col or 'NOT MAPPED',
+                        'Confidence': f"{confidence:.0f}%",
+                        'Reason': reason
+                    }
+                    for col, (pete_col, confidence, reason) in mapping.items()
+                ])
+                mapping_df.to_excel(writer, sheet_name='Mapping_Summary', index=False)
+        except ImportError:
+            # Fallback to openpyxl if xlsxwriter not available
+            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+                # Main Pete-ready data
+                df_pete.to_excel(writer, sheet_name='Pete_Ready_Data', index=False)
+                
+                # Original data for reference
+                df_prioritized.to_excel(writer, sheet_name='Original_Processed', index=False)
+                
+                # Mapping summary
+                mapping_df = pd.DataFrame([
+                    {
+                        'Upload_Column': col,
+                        'Pete_Header': pete_col or 'NOT MAPPED',
+                        'Confidence': f"{confidence:.0f}%",
+                        'Reason': reason
+                    }
+                    for col, (pete_col, confidence, reason) in mapping.items()
+                ])
+                mapping_df.to_excel(writer, sheet_name='Mapping_Summary', index=False)
         
         print(f"✅ Export completed successfully!")
         print(f"📁 File saved: {output_path}")

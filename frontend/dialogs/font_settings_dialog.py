@@ -37,7 +37,7 @@ class FontSettingsDialog(QDialog):
         """Initialize font settings dialog."""
         super().__init__(parent)
         
-        self.settings_file = Path("DEV_MAN/preferences/font_settings.json")
+        self.settings_file = Path("data/users/preferences/font_settings.json")
         self.settings_file.parent.mkdir(parents=True, exist_ok=True)
         
         self.current_settings = self._load_settings()
@@ -309,7 +309,7 @@ class FontSettingsDialog(QDialog):
     @staticmethod
     def get_application_font() -> QFont:
         """Get the application font from saved settings."""
-        settings_file = Path("DEV_MAN/preferences/font_settings.json")
+        settings_file = Path("data/users/preferences/font_settings.json")
         
         if settings_file.exists():
             try:

@@ -125,6 +125,31 @@ class DataStandardizerEnhanced:
         logger.info(f"✅ Concatenated {len(existing_cols)} email columns into '{target_col}'")
         return df_copy
     
+    def standardize_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Standardize the entire dataframe using all available standardization rules.
+        
+        Args:
+            df: Input DataFrame
+            
+        Returns:
+            Standardized DataFrame
+        """
+        logger.info("🔧 Starting dataframe standardization...")
+        
+        df_standardized = df.copy()
+        
+        # Standardize property type if the column exists
+        if 'Property Type' in df_standardized.columns:
+            df_standardized = self.standardize_property_type(df_standardized, 'Property Type')
+            logger.info("✅ Standardized Property Type column")
+        
+        # Add more standardization rules here as needed
+        # For example: phone numbers, addresses, etc.
+        
+        logger.info("✅ Dataframe standardization completed")
+        return df_standardized
+
     def standardize_property_type(self, df: pd.DataFrame, column: str) -> pd.DataFrame:
         """
         Standardize property type values in a column.

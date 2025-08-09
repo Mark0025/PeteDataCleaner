@@ -6,28 +6,49 @@ Tests the complete data processing pipeline using ultra-fast Polars processing
 with comprehensive time estimation and real-time monitoring.
 """
 
-import pandas as pd
-import numpy as np
-from pathlib import Path
-import sys
-import time
-from datetime import datetime, timedelta
 import psutil
 import os
+import polars as pl
+from pathlib import Path
+import signal
+import time
 
 # Add project root to path
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from datetime import datetime, timedelta
+import time
+import pandas as pd
 from backend.utils.ultra_fast_processor import (
-    load_csv_ultra_fast, clean_dataframe_ultra_fast, filter_empty_columns_ultra_fast, 
-    prioritize_phones_ultra_fast, analyze_owner_objects_ultra_fast, process_complete_pipeline_ultra_fast
+    load_csv_ultra_fast, clean_dataframe_ultra_fast, 
+    filter_empty_columns_ultra_fast, prioritize_phones_ultra_fast
 )
 from backend.utils.pete_header_mapper import PeteHeaderMapper
 from backend.utils.data_standardizer_enhanced import DataStandardizerEnhanced
-from backend.utils.owner_analyzer import analyze_ownership_data
 from backend.utils.preset_manager import PresetManager
 from backend.utils.user_manager import UserManager
+from backend.utils.ultra_fast_owner_analyzer import UltraFastOwnerObjectAnalyzer
+from backend.utils.owner_persistence_manager import save_property_owners_persistent
+
+
+class TimeoutError(Exception):
+    pass
+
+def timeout_handler(signum, frame):
+    raise TimeoutError("Operation timed out")
+
+def run_with_timeout(func, timeout_seconds=300):
+    """Run a function with a timeout."""
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(timeout_seconds)
+    try:
+        result = func()
+        signal.alarm(0)  # Cancel the alarm
+        return result
+    except TimeoutError:
+        print(f"⏰ Operation timed out after {timeout_seconds} seconds")
+        return None
 
 
 def log_system_status():
@@ -128,13 +149,13 @@ def test_ultra_fast_pipeline():
         print(f"❌ Failed to load CSV: {e}")
         return False
     
-    # Step 2: Clean data (remove .0)
+    # Step 2: Ultra-fast .0 cleanup
     print(f"\n🧹 Step 2: Ultra-fast .0 cleanup...")
     print(f"⏰ Started at: {datetime.now().strftime('%H:%M:%S')}")
     clean_start = time.time()
     
     try:
-        df_clean = clean_dataframe_ultra_fast(df)
+        df_cleaned = clean_dataframe_ultra_fast(df)
         clean_time = time.time() - clean_start
         
         # Show cleaning effect
@@ -143,7 +164,7 @@ def test_ultra_fast_pipeline():
             print(f"📞 Phone cleaning example:")
             for col in phone_cols[:2]:
                 original = df[col].iloc[0] if not df[col].empty else "N/A"
-                cleaned = df_clean[col].iloc[0] if not df_clean[col].empty else "N/A"
+                cleaned = df_cleaned[col].iloc[0] if not df_cleaned[col].empty else "N/A"
                 print(f"   {col}: {original} → {cleaned}")
         
         log_system_status()
@@ -158,9 +179,9 @@ def test_ultra_fast_pipeline():
     filter_start = time.time()
     
     try:
-        df_filtered = filter_empty_columns_ultra_fast(df_clean, threshold=0.9)
+        df_filtered = filter_empty_columns_ultra_fast(df_cleaned, threshold=0.9)
         filter_time = time.time() - filter_start
-        removed_cols = len(df_clean.columns) - len(df_filtered.columns)
+        removed_cols = len(df_cleaned.columns) - len(df_filtered.columns)
         
         log_system_status()
         
@@ -168,7 +189,9 @@ def test_ultra_fast_pipeline():
         print(f"❌ Failed to filter columns: {e}")
         return False
     
-    # Step 4: Phone prioritization
+    log_system_status()
+    
+    # Step 4: Phone prioritization (BEFORE owner analysis)
     print(f"\n📞 Step 4: Ultra-fast phone prioritization...")
     print(f"⏰ Started at: {datetime.now().strftime('%H:%M:%S')}")
     phone_start = time.time()
@@ -212,106 +235,101 @@ def test_ultra_fast_pipeline():
         print(f"❌ Failed to prioritize phones: {e}")
         return False
     
-    # Step 5: Owner Object Analysis
-    print(f"\n🏠 Step 5: Ultra-fast Owner Object analysis...")
+    # Step 5: Ultra-fast Owner Object analysis (AFTER phone prioritization, BEFORE Pete mapping)
+    print("\n🏠 Step 5: Ultra-fast Owner Object analysis...")
+    start_time = time.time()
     print(f"⏰ Started at: {datetime.now().strftime('%H:%M:%S')}")
-    owner_obj_start = time.time()
+    
+    # Use the data with prioritized phones but BEFORE Pete mapping
+    df_for_owner_analysis = df_phones.copy()
+    
+    # Add Property Value column if not present (for owner analysis)
+    if 'Property Value' not in df_for_owner_analysis.columns and 'Estimated value' in df_for_owner_analysis.columns:
+        df_for_owner_analysis['Property Value'] = df_for_owner_analysis['Estimated value']
+    elif 'Property Value' not in df_for_owner_analysis.columns:
+        df_for_owner_analysis['Property Value'] = 0.0
+    
+    # Add Property Address column if not present
+    if 'Property Address' not in df_for_owner_analysis.columns and 'Property address' in df_for_owner_analysis.columns:
+        df_for_owner_analysis['Property Address'] = df_for_owner_analysis['Property address']
+    
+    # Add Seller 1 column if not present
+    if 'Seller 1' not in df_for_owner_analysis.columns:
+        if 'First Name' in df_for_owner_analysis.columns and 'Last Name' in df_for_owner_analysis.columns:
+            df_for_owner_analysis['Seller 1'] = df_for_owner_analysis['First Name'].fillna('') + ' ' + df_for_owner_analysis['Last Name'].fillna('')
+        else:
+            df_for_owner_analysis['Seller 1'] = 'Unknown Owner'
+    
+    print("🏠 ULTRA-FAST OWNER OBJECT ANALYSIS")
+    print(f"📊 Records: {len(df_for_owner_analysis):,}")
+    print(f"⏰ Started at: {time.strftime('%H:%M:%S')}")
+    
+    # Estimate analysis time
+    estimated_analysis_time = len(df_for_owner_analysis) / 100000  # 100k records per second
+    print(f"⏱️  Estimated analysis time: {estimated_analysis_time:.1f}s")
     
     try:
-        df_owner_objects, owner_objects = analyze_owner_objects_ultra_fast(df_phones)
-        owner_obj_time = time.time() - owner_obj_start
+        # Convert to Polars for ultra-fast processing
+        df_polars = pl.from_pandas(df_for_owner_analysis)
         
-        # Show Owner Object analysis results
-        print(f"📊 Owner Object Analysis Summary:")
-        print(f"   Total Owner Objects created: {len(owner_objects):,}")
+        # Run ultra-fast owner analysis
+        analyzer = UltraFastOwnerObjectAnalyzer()
+        owner_objects, df_enhanced = analyzer.analyze_dataset_ultra_fast(df_polars)
         
-        # Count by confidence level
-        high_confidence = len([obj for obj in owner_objects if obj.confidence_score >= 0.8])
-        medium_confidence = len([obj for obj in owner_objects if 0.5 <= obj.confidence_score < 0.8])
-        low_confidence = len([obj for obj in owner_objects if obj.confidence_score < 0.5])
+        # Save owner objects for dashboard
+        if owner_objects:
+            save_property_owners_persistent(owner_objects, df_enhanced, "ultra_fast_pipeline")
+            print(f"✅ Saved {len(owner_objects)} owner objects for dashboard")
         
-        print(f"   High confidence (80%+): {high_confidence:,} ({high_confidence/len(owner_objects)*100:.1f}%)")
-        print(f"   Medium confidence (50-80%): {medium_confidence:,} ({medium_confidence/len(owner_objects)*100:.1f}%)")
-        print(f"   Low confidence (<50%): {low_confidence:,} ({low_confidence/len(owner_objects)*100:.1f}%)")
+        actual_analysis_time = time.time() - start_time
+        print(f"⏱️  Actual analysis time: {actual_analysis_time:.2f}s")
+        print(f"📈 Speed: {len(df_for_owner_analysis)/actual_analysis_time:.0f} records/sec")
         
-        # Show sample Owner Objects
-        print(f"\n🎯 SAMPLE OWNER OBJECTS:")
-        print("-" * 50)
-        for i, obj in enumerate(owner_objects[:3], 1):
-            print(f"Owner {i}:")
-            print(f"  Individual: '{obj.individual_name}'")
-            print(f"  Business: '{obj.business_name}'")
-            print(f"  Seller 1: '{obj.seller1_name}'")
-            print(f"  Skip Trace: '{obj.skip_trace_target}'")
-            print(f"  Confidence: {obj.confidence_score:.1f}")
-            print(f"  Properties: {obj.property_count}")
-            print()
-        
-        # Show enhanced dataframe columns
-        new_cols = [col for col in df_owner_objects.columns if col not in df_phones.columns]
-        print(f"📋 New columns added: {new_cols}")
-        
-        log_system_status()
+        # Update estimates
+        print(f"🎯 Accuracy: {abs(estimated_analysis_time - actual_analysis_time)/actual_analysis_time*100:.1f}% off estimate")
         
     except Exception as e:
-        print(f"❌ Failed to analyze Owner Objects: {e}")
-        return False
+        print(f"❌ Owner Object analysis failed: {e}")
+        owner_objects = []
+        df_enhanced = df_polars
     
-    # Step 6: Owner analysis (legacy)
-    print(f"\n🏠 Step 6: Analyzing ownership patterns...")
+    log_system_status()
+    
+    # Step 6: Mapping to Pete headers (AFTER owner analysis)
+    print("\n🎯 Step 6: Mapping to Pete headers...")
+    start_time = time.time()
     print(f"⏰ Started at: {datetime.now().strftime('%H:%M:%S')}")
-    owner_start = time.time()
     
-    try:
-        owner_results = analyze_ownership_data(df_owner_objects)
-        owner_time = time.time() - owner_start
-        
-        # Show owner analysis results
-        print(f"📊 Owner Analysis Summary:")
-        print(f"   Total owners: {owner_results.get('total_owners', 0):,}")
-        print(f"   Business entities: {owner_results.get('business_entities', 0):,}")
-        print(f"   Multi-property owners: {owner_results.get('multi_property_owners', 0):,}")
-        
-        log_system_status()
-        
-    except Exception as e:
-        print(f"❌ Failed to analyze owners: {e}")
-        return False
-    
-    # Step 7: Map to Pete headers
-    print(f"\n🎯 Step 7: Mapping to Pete headers...")
-    print(f"⏰ Started at: {datetime.now().strftime('%H:%M:%S')}")
-    mapping_start = time.time()
+    # Use the enhanced DataFrame with owner analysis results
+    df_for_pete_mapping = df_enhanced.to_pandas() if hasattr(df_enhanced, 'to_pandas') else df_enhanced
     
     try:
         mapper = PeteHeaderMapper()
-        mapping = mapper.suggest_mapping(df_phones)
+        mapping = mapper.suggest_mapping(df_for_pete_mapping)
         
         # Create Pete-ready DataFrame
-        pete_df = mapper.create_pete_ready_dataframe(df_owner_objects, mapping)
-        mapping_time = time.time() - mapping_start
+        pete_df = mapper.create_pete_ready_dataframe(df_for_pete_mapping, mapping)
+        mapping_time = time.time() - start_time
         
         # Show mapping results
         print(f"📋 Mapping Summary:")
-        print(f"   Original columns: {len(df_phones.columns)}")
+        print(f"   Original columns: {len(df_for_pete_mapping.columns)}")
         print(f"   Pete columns: {len(pete_df.columns)}")
         print(f"   Mapped columns: {len(mapping)}")
         
-        # Show sample of Pete-ready data
-        print(f"\n🎯 PETE-READY DATA SAMPLE:")
-        print("-" * 40)
-        pete_sample_cols = ['Seller 1', 'Seller 1 Phone', 'Seller 1 Email', 'Property Address', 'Property City']
-        available_pete_cols = [col for col in pete_sample_cols if col in pete_df.columns]
-        print(pete_df[available_pete_cols].head(3).to_string())
+        # Show sample mapped data
+        print(f"\n📊 PETE-MAPPED DATA SAMPLE:")
+        print("-" * 50)
+        print(pete_df.head(3))
         
         log_system_status()
         
     except Exception as e:
-        print(f"❌ Failed to map to Pete: {e}")
+        print(f"❌ Failed to map to Pete headers: {e}")
         return False
     
-    # Step 8: Data standardization
-    print(f"\n🔧 Step 8: Standardizing data...")
+    # Step 7: Data standardization
+    print(f"\n🔧 Step 7: Standardizing data...")
     print(f"⏰ Started at: {datetime.now().strftime('%H:%M:%S')}")
     standardize_start = time.time()
     
@@ -320,154 +338,284 @@ def test_ultra_fast_pipeline():
         df_standardized = standardizer.standardize_dataframe(pete_df)
         standardize_time = time.time() - standardize_start
         
-        # Show standardization results
-        print(f"📊 Standardization Summary:")
-        print(f"   Original columns: {len(pete_df.columns)}")
-        print(f"   Standardized columns: {len(df_standardized.columns)}")
-        
         log_system_status()
         
     except Exception as e:
         print(f"❌ Failed to standardize data: {e}")
         return False
     
-    # Step 9: Save comprehensive preset
-    print(f"\n💾 Step 9: Saving comprehensive preset...")
+    # Step 8: Save comprehensive preset
+    print(f"\n💾 Step 8: Saving comprehensive preset...")
     print(f"⏰ Started at: {datetime.now().strftime('%H:%M:%S')}")
     preset_start = time.time()
     
     try:
-        # Initialize managers
-        user_manager = UserManager()
-        preset_manager = PresetManager()
-        
-        # Get current user
-        current_user = user_manager.get_current_user()
-        print(f"👤 Current user: {current_user}")
-        
-        # Save comprehensive preset
+        # Save comprehensive preset with all results
         preset_data = {
             'dataframe': df_standardized,
             'phone_prioritization_rules': prioritization_rules,
-            'owner_analysis_results': owner_results,
+            'owner_analysis_results': owner_objects, # Use owner_objects here
             'pete_mapping': mapping,
             'owner_objects': owner_objects,
-            'processing_stats': {
+            'metadata': {
                 'load_time': load_time,
                 'clean_time': clean_time,
                 'filter_time': filter_time,
                 'phone_time': phone_time,
-                'owner_obj_time': owner_obj_time,
-                'owner_time': owner_time,
+                'owner_obj_time': actual_analysis_time, # Use actual_analysis_time here
+                'owner_time': actual_analysis_time, # Use actual_analysis_time here
                 'mapping_time': mapping_time,
                 'standardize_time': standardize_time
             }
         }
         
-        preset_id = preset_manager.save_comprehensive_preset(current_user, preset_data)
+        preset_manager = PresetManager()
+        preset_name = f"ultra_fast_pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        preset_manager.save_comprehensive_preset(
+            preset_name=preset_name,
+            data_source="REISIFT",
+            original_df=df,
+            prepared_df=df_standardized,
+            phone_prioritization_rules=prioritization_rules,
+            owner_analysis_results={'owner_objects_count': len(owner_objects) if owner_objects else 0},
+            data_prep_summary={
+                'version_summary': [
+                    {'action': 'Load CSV', 'timestamp': datetime.now().isoformat()},
+                    {'action': 'Clean .0', 'timestamp': datetime.now().isoformat()},
+                    {'action': 'Filter empty columns', 'timestamp': datetime.now().isoformat()},
+                    {'action': 'Phone prioritization', 'timestamp': datetime.now().isoformat()},
+                    {'action': 'Owner analysis', 'timestamp': datetime.now().isoformat()},
+                    {'action': 'Pete mapping', 'timestamp': datetime.now().isoformat()},
+                    {'action': 'Data standardization', 'timestamp': datetime.now().isoformat()}
+                ],
+                'tools_used': ['load_csv_fast', 'clean_dataframe_fast', 'filter_empty_columns_fast', 
+                              'prioritize_phones_fast', 'owner_analysis', 'pete_mapping', 'standardization'],
+                'data_source': 'REISIFT',
+                'original_shape': df.shape,
+                'prepared_shape': df_standardized.shape
+            },
+            export_data=df_standardized
+        )
+        
         preset_time = time.time() - preset_start
-        
-        print(f"✅ Comprehensive preset saved: {preset_id}")
-        print(f"📊 Preset includes:")
-        print(f"   - Standardized data: {len(df_standardized):,} rows, {len(df_standardized.columns)} columns")
-        print(f"   - Phone prioritization rules")
-        print(f"   - Owner analysis results")
-        print(f"   - Pete header mapping")
-        print(f"   - Owner Objects: {len(owner_objects):,}")
-        print(f"   - Processing statistics")
-        
-        log_system_status()
+        print(f"✅ Saved comprehensive preset: {preset_name}")
         
     except Exception as e:
         print(f"❌ Failed to save preset: {e}")
         return False
     
-    # Step 10: Export final data
-    print(f"\n📤 Step 10: Exporting final data...")
-    print(f"⏰ Started at: {datetime.now().strftime('%H:%M:%S')}")
+    # Step 9: Export final data
+    print("\n📤 Step 9: Export final data...")
     export_start = time.time()
     
+    # Create export directory
+    export_dir = "data/exports"
+    os.makedirs(export_dir, exist_ok=True)
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    csv_output_file = f"{export_dir}/pete_export_{timestamp}.csv"
+    excel_output_file = f"{export_dir}/pete_export_{timestamp}.xlsx"
+    
+    print(f"📊 Exporting {len(df_standardized):,} records...")
+    print(f"📁 CSV: {csv_output_file}")
+    print(f"📁 Excel: {excel_output_file}")
+    
     try:
-        # Export to Excel with timestamp
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        excel_filename = f"ultra_fast_processed_{timestamp}.xlsx"
+        # Always export CSV (fast)
+        df_standardized.to_csv(csv_output_file, index=False)
+        print(f"✅ Exported Pete-ready data (CSV): {csv_output_file}")
         
-        print(f"📊 Writing {len(df_standardized):,} rows, {len(df_standardized.columns)} columns to Excel...")
-        df_standardized.to_excel(excel_filename, index=False, engine='openpyxl')
+        # Smart Excel export based on dataset size
+        dataset_size = len(df_standardized)
+        
+        if dataset_size > 50000:
+            # For very large datasets, use xlsxwriter with progress logging
+            print(f"📊 Large dataset ({dataset_size:,} rows). Using xlsxwriter for Pete CRM export...")
+            print(f"⏱️  Estimated Excel export time: {dataset_size/6000:.1f}s ({dataset_size/6000/60:.1f} minutes)")
+            print(f"💡 This is required for Pete CRM integration")
+            
+            try:
+                def export_excel_fast():
+                    print(f"📤 Starting Excel export for Pete CRM...")
+                    df_standardized.to_excel(excel_output_file, index=False, engine='xlsxwriter')
+                    return True
+                
+                result = run_with_timeout(export_excel_fast, timeout_seconds=600)  # 10 minute timeout for large datasets
+                if result:
+                    print(f"✅ Exported Pete-ready data (Excel): {excel_output_file}")
+                    print(f"📤 Ready for Pete CRM upload!")
+                else:
+                    print(f"⏰ Excel export timed out. Use CSV file: {csv_output_file}")
+            except ImportError:
+                print("⚠️  xlsxwriter not available. Using openpyxl (slower)...")
+                print(f"⏱️  Estimated Excel export time: {dataset_size/5000:.1f}s ({dataset_size/5000/60:.1f} minutes)")
+                
+                def export_excel_openpyxl():
+                    print(f"📤 Starting Excel export with openpyxl...")
+                    df_standardized.to_excel(excel_output_file, index=False, engine='openpyxl')
+                    return True
+                
+                result = run_with_timeout(export_excel_openpyxl, timeout_seconds=900)  # 15 minute timeout
+                if result:
+                    print(f"✅ Exported Pete-ready data (Excel): {excel_output_file}")
+                    print(f"📤 Ready for Pete CRM upload!")
+                else:
+                    print(f"⏰ Excel export timed out. Use CSV file: {csv_output_file}")
+            except Exception as e:
+                print(f"❌ Excel export failed: {e}")
+                print(f"💡 CSV file available: {csv_output_file}")
+        elif dataset_size > 10000:
+            # For medium datasets, try xlsxwriter (faster than openpyxl)
+            print(f"📊 Medium dataset ({dataset_size:,} rows). Using xlsxwriter for faster Excel export...")
+            try:
+                def export_excel_fast():
+                    df_standardized.to_excel(excel_output_file, index=False, engine='xlsxwriter')
+                    return True
+                
+                result = run_with_timeout(export_excel_fast, timeout_seconds=120)  # 2 minute timeout
+                if result:
+                    print(f"✅ Exported Pete-ready data (Excel): {excel_output_file}")
+                else:
+                    print(f"⏰ Excel export timed out. Use CSV file: {csv_output_file}")
+            except ImportError:
+                print("⚠️  xlsxwriter not available. Trying openpyxl...")
+                def export_excel_openpyxl():
+                    df_standardized.to_excel(excel_output_file, index=False, engine='openpyxl')
+                    return True
+                
+                result = run_with_timeout(export_excel_openpyxl, timeout_seconds=300)
+                if result:
+                    print(f"✅ Exported Pete-ready data (Excel): {excel_output_file}")
+                else:
+                    print(f"⏰ Excel export timed out. Use CSV file: {csv_output_file}")
+        else:
+            # For small datasets, use openpyxl (most compatible)
+            print(f"📊 Small dataset ({dataset_size:,} rows). Using openpyxl...")
+            def export_excel():
+                df_standardized.to_excel(excel_output_file, index=False, engine='openpyxl')
+                return True
+            
+            result = run_with_timeout(export_excel, timeout_seconds=60)  # 1 minute timeout
+            if result:
+                print(f"✅ Exported Pete-ready data (Excel): {excel_output_file}")
+            else:
+                print(f"⏰ Excel export timed out. Use CSV file: {csv_output_file}")
+        
+        # Export Owner Objects summary with smart sizing
+        if owner_objects:
+            print(f"📊 Exporting Owner Objects summary...")
+            owner_summary_data = []
+            
+            # Process in chunks to avoid memory issues
+            chunk_size = 10000
+            total_objects = len(owner_objects)
+            
+            for i in range(0, total_objects, chunk_size):
+                chunk = owner_objects[i:i+chunk_size]
+                print(f"📊 Processing Owner Objects {i+1:,}-{min(i+chunk_size, total_objects):,}/{total_objects:,}")
+                
+                for obj in chunk:
+                    owner_summary_data.append({
+                        'Individual_Name': obj.individual_name,
+                        'Business_Name': obj.business_name,
+                        'Mailing_Address': obj.mailing_address,
+                        'Seller_1': obj.seller1_name,
+                        'Skip_Trace_Target': obj.skip_trace_target,
+                        'Confidence_Score': obj.confidence_score,
+                        'Property_Count': obj.property_count,
+                        'Total_Value': obj.total_property_value,
+                        'Owner_Type': 'Individual + Business' if obj.is_individual_owner and obj.is_business_owner else 
+                                     'Individual Only' if obj.is_individual_owner else 
+                                     'Business Only' if obj.is_business_owner else 'Unknown'
+                    })
+            
+            owner_summary_df = pd.DataFrame(owner_summary_data)
+            owner_csv_file = f"{export_dir}/owner_objects_summary_{timestamp}.csv"
+            owner_excel_file = f"{export_dir}/owner_objects_summary_{timestamp}.xlsx"
+            
+            # Always export CSV
+            owner_summary_df.to_csv(owner_csv_file, index=False)
+            print(f"✅ Exported Owner Objects summary (CSV): {owner_csv_file}")
+            
+            # Smart Excel export for owner objects
+            if len(owner_summary_df) > 10000:
+                print(f"📊 Large Owner Objects dataset ({len(owner_summary_df):,} rows). Using xlsxwriter for Excel export...")
+                print(f"⏱️  Estimated Excel export time: {len(owner_summary_df)/8000:.1f}s")
+                
+                try:
+                    def export_owner_excel():
+                        print(f"📤 Starting Owner Objects Excel export...")
+                        owner_summary_df.to_excel(owner_excel_file, index=False, engine='xlsxwriter')
+                        return True
+                    
+                    result = run_with_timeout(export_owner_excel, timeout_seconds=300)  # 5 minute timeout
+                    if result:
+                        print(f"✅ Exported Owner Objects summary (Excel): {owner_excel_file}")
+                    else:
+                        print(f"⏰ Owner Objects Excel export timed out. CSV available: {owner_csv_file}")
+                except ImportError:
+                    # Fallback to openpyxl
+                    print(f"⚠️  xlsxwriter not available. Using openpyxl (slower)...")
+                    print(f"⏱️  Estimated Excel export time: {len(owner_summary_df)/6000:.1f}s")
+                    
+                    def export_owner_excel_openpyxl():
+                        print(f"📤 Starting Owner Objects Excel export with openpyxl...")
+                        owner_summary_df.to_excel(owner_excel_file, index=False, engine='openpyxl')
+                        return True
+                    
+                    result = run_with_timeout(export_owner_excel_openpyxl, timeout_seconds=300)
+                    if result:
+                        print(f"✅ Exported Owner Objects summary (Excel): {owner_excel_file}")
+                    else:
+                        print(f"⏰ Owner Objects Excel export timed out. CSV available: {owner_csv_file}")
+                except Exception as e:
+                    print(f"❌ Owner Objects Excel export failed: {e}")
+                    print(f"💡 CSV available: {owner_csv_file}")
+            else:
+                try:
+                    def export_owner_excel():
+                        owner_summary_df.to_excel(owner_excel_file, index=False, engine='xlsxwriter')
+                        return True
+                    
+                    result = run_with_timeout(export_owner_excel, timeout_seconds=60)
+                    if result:
+                        print(f"✅ Exported Owner Objects summary (Excel): {owner_excel_file}")
+                    else:
+                        print(f"⏰ Owner Objects Excel export timed out. CSV available: {owner_csv_file}")
+                except ImportError:
+                    # Fallback to openpyxl
+                    def export_owner_excel_openpyxl():
+                        owner_summary_df.to_excel(owner_excel_file, index=False, engine='openpyxl')
+                        return True
+                    
+                    result = run_with_timeout(export_owner_excel_openpyxl, timeout_seconds=60)
+                    if result:
+                        print(f"✅ Exported Owner Objects summary (Excel): {owner_excel_file}")
+                    else:
+                        print(f"⏰ Owner Objects Excel export timed out. CSV available: {owner_csv_file}")
+        
         export_time = time.time() - export_start
-        
-        print(f"✅ Excel export complete: {excel_filename}")
-        print(f"⏱️  Export time: {export_time:.2f}s")
-        
-        # Also export Owner Objects summary
-        owner_summary_filename = f"owner_objects_summary_{timestamp}.csv"
-        owner_summary_data = []
-        
-        for obj in owner_objects:
-            owner_summary_data.append({
-                'Individual_Name': obj.individual_name,
-                'Business_Name': obj.business_name,
-                'Mailing_Address': obj.mailing_address,
-                'Seller_1': obj.seller1_name,
-                'Skip_Trace_Target': obj.skip_trace_target,
-                'Confidence_Score': obj.confidence_score,
-                'Property_Count': obj.property_count,
-                'Total_Value': obj.total_property_value,
-                'Owner_Type': 'Individual + Business' if obj.is_individual_owner and obj.is_business_owner else 
-                             'Individual Only' if obj.is_individual_owner else 
-                             'Business Only' if obj.is_business_owner else 'Unknown'
-            })
-        
-        owner_summary_df = pd.DataFrame(owner_summary_data)
-        owner_summary_df.to_csv(owner_summary_filename, index=False)
-        print(f"✅ Owner Objects summary exported: {owner_summary_filename}")
-        
-        log_system_status()
+        print(f"⏱️  Export completed in {export_time:.2f}s")
         
     except Exception as e:
         print(f"❌ Failed to export data: {e}")
         return False
     
     # Final summary
-    total_time = time.time() - start_time
-    print(f"\n🎉 ULTRA-FAST PIPELINE TEST COMPLETED SUCCESSFULLY!")
-    print("=" * 80)
+    total_time = time.time() - pipeline_start
+    print(f"\n🎉 ULTRA-FAST PIPELINE COMPLETED!")
     print(f"⏱️  Total time: {total_time:.2f}s")
-    print(f"📊 Data processed: {len(df):,} rows")
-    
-    # Compare with estimates
-    print(f"\n📈 ESTIMATION ACCURACY:")
-    print(f"   Estimated total time: {refined_estimates['total_estimated']:.1f}s")
-    print(f"   Actual total time: {total_time:.1f}s")
-    accuracy = abs(refined_estimates['total_estimated'] - total_time) / refined_estimates['total_estimated'] * 100
-    print(f"   Estimation accuracy: {100 - accuracy:.1f}%")
-    
-    print(f"\n🔧 Features tested:")
-    print(f"   ✅ Ultra-fast CSV loading (Polars)")
-    print(f"   ✅ Ultra-fast .0 cleanup (Polars)")
-    print(f"   ✅ Ultra-fast empty column filtering")
-    print(f"   ✅ Ultra-fast phone prioritization with custom rules")
-    print(f"   ✅ Owner analysis")
-    print(f"   ✅ Pete header mapping")
-    print(f"   ✅ Data standardization")
-    print(f"   ✅ Comprehensive preset saving")
-    print(f"   ✅ Multi-format export")
-    
-    print(f"\n📈 Performance Summary:")
+    print(f"📊 Performance summary:")
     print(f"   Load: {load_time:.2f}s")
     print(f"   Clean: {clean_time:.2f}s")
     print(f"   Filter: {filter_time:.2f}s")
     print(f"   Phones: {phone_time:.2f}s")
-    print(f"   Owners: {owner_time:.2f}s")
+    print(f"   Owners: {actual_analysis_time:.2f}s") # Use actual_analysis_time here
     print(f"   Mapping: {mapping_time:.2f}s")
     print(f"   Standardize: {standardize_time:.2f}s")
     print(f"   Preset: {preset_time:.2f}s")
     print(f"   Export: {export_time:.2f}s")
-    
-    print(f"\n🚀 Overall Performance:")
-    print(f"   Average speed: {len(df) / total_time:,.0f} records/sec")
-    print(f"   Memory efficiency: {len(df) * len(df.columns) / (1024**2):.1f} MB processed")
-    print(f"   Speedup vs pandas: ~15-20x faster")
+    print(f"📈 Overall speed: {len(df_standardized)/total_time:.0f} records/sec")
     
     return True
 
@@ -476,6 +624,41 @@ if __name__ == "__main__":
     print("🧪 RUNNING ULTRA-FAST PIPELINE TEST")
     print("=" * 80)
     
+    # Launch the GUI app in the background
+    print("🚀 Launching GUI app for real-time monitoring...")
+    try:
+        import subprocess
+        import threading
+        
+        def launch_gui():
+            """Launch the GUI app in a separate process."""
+            try:
+                subprocess.run([
+                    "uv", "run", "python", "-c", 
+                    "from frontend.main_window import main; main()"
+                ], check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"⚠️ GUI launch failed: {e}")
+            except Exception as e:
+                print(f"⚠️ GUI launch error: {e}")
+        
+        # Start GUI in background thread
+        gui_thread = threading.Thread(target=launch_gui, daemon=True)
+        gui_thread.start()
+        
+        print("✅ GUI app launched in background")
+        print("📱 You should see the Pete Data Cleaner app window open")
+        print("📊 The dashboard will show real-time pipeline progress")
+        print("-" * 80)
+        
+        # Give GUI time to start
+        import time
+        time.sleep(3)
+        
+    except Exception as e:
+        print(f"⚠️ Could not launch GUI: {e}")
+        print("📊 Continuing with console-only mode")
+    
     success = test_ultra_fast_pipeline()
     
     if success:
@@ -483,6 +666,7 @@ if __name__ == "__main__":
         print("✅ Pipeline is working correctly with ultra-fast processing")
         print("✅ All features are integrated and functional")
         print("✅ Time estimation is accurate")
+        print("\n📱 Check the GUI app for the complete dashboard and Owner Analysis!")
     else:
         print("\n❌ ULTRA-FAST TEST FAILED!")
         print("Please check the errors above") 

@@ -561,7 +561,7 @@ class DataToolsPanel(BaseComponent):
         
         try:
             # Create export directory if it doesn't exist
-            export_dir = "DEV_MAN"
+            export_dir = "data/exports"
             os.makedirs(export_dir, exist_ok=True)
             
             # Export analysis

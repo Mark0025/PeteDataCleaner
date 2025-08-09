@@ -28,7 +28,13 @@ class PresetManager:
     - Track all data transformations and configurations
     """
     
-    def __init__(self, base_dir: str = "DEV_MAN/presets"):
+    def __init__(self, base_dir: str = "data/presets"):
+        """
+        Initialize the Preset Manager.
+        
+        Args:
+            base_dir: Base directory for storing presets (default: data/presets)
+        """
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         

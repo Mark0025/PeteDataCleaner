@@ -261,7 +261,12 @@ def test_complete_pipeline():
         # Export to Excel
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         excel_path = f"test_output_pete_ready_{timestamp}.xlsx"
-        pete_df.to_excel(excel_path, index=False, engine='openpyxl')
+        # Use xlsxwriter for faster Excel export
+        try:
+            pete_df.to_excel(excel_path, index=False, engine='xlsxwriter')
+        except ImportError:
+            # Fallback to openpyxl if xlsxwriter not available
+            pete_df.to_excel(excel_path, index=False, engine='openpyxl')
         
         # Export to CSV
         csv_path = f"test_output_pete_ready_{timestamp}.csv"

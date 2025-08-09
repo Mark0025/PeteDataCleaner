@@ -298,8 +298,21 @@ class PeteHeaderMapper:
         # Export
         if format.lower() == 'xlsx':
             try:
-                df.to_excel(filename, index=False, engine='openpyxl')
+                # Use xlsxwriter for faster Excel export
+                df.to_excel(filename, index=False, engine='xlsxwriter')
                 logger.info(f"✅ Pete-ready Excel export: {filename}")
+            except ImportError:
+                # Fallback to openpyxl if xlsxwriter not available
+                try:
+                    df.to_excel(filename, index=False, engine='openpyxl')
+                    logger.info(f"✅ Pete-ready Excel export: {filename}")
+                except Exception as e:
+                    logger.error(f"Excel export failed: {e}")
+                    # Fallback to CSV
+                    csv_filename = filename.replace('.xlsx', '.csv')
+                    df.to_csv(csv_filename, index=False)
+                    logger.info(f"✅ Pete-ready CSV export: {csv_filename}")
+                    return csv_filename
             except Exception as e:
                 logger.error(f"Excel export failed: {e}")
                 # Fallback to CSV

@@ -104,7 +104,7 @@ def test_real_data_analysis():
     print(df_enhanced[available_cols].head(10).to_string())
     
     # Save enhanced data for inspection
-    output_path = Path("DEV_MAN/owner_analysis_sample.csv")
+    output_path = Path("data/processed/reports/owner_analysis_sample.csv")
     df_enhanced[available_cols].head(1000).to_csv(output_path, index=False)
     print(f"\n💾 Saved sample to: {output_path}")
     

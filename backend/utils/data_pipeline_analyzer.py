@@ -488,11 +488,15 @@ class DataPipelineAnalyzer:
             
             # Create filename with timestamp
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = f"DEV_MAN/whatsworking/processed_data_{timestamp}.xlsx"
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            filename = f"data/processed/reports/processed_data_{timestamp}.xlsx"
+            Path(filename).parent.mkdir(parents=True, exist_ok=True)
             
-            # Export to Excel
-            self.processed_df.to_excel(filename, index=False, engine='openpyxl')
+            # Export to Excel (use xlsxwriter for faster export)
+            try:
+                self.processed_df.to_excel(filename, index=False, engine='xlsxwriter')
+            except ImportError:
+                # Fallback to openpyxl if xlsxwriter not available
+                self.processed_df.to_excel(filename, index=False, engine='openpyxl')
             
             logger.info(f"Processed data exported to Excel: {filename}")
             return filename

@@ -25,7 +25,7 @@ class ColumnPreferences:
     - Automatic application on data load
     """
     
-    def __init__(self, base_dir: str = "DEV_MAN/preferences"):
+    def __init__(self, base_dir: str = "data/users/preferences"):
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         

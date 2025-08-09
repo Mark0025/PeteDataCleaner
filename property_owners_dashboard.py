@@ -224,10 +224,12 @@ class PropertyOwnersDashboard:
         )
         
         # Save dashboard
-        fig.write_html(output_path)
-        print(f"✅ Dashboard saved: {output_path}")
+        dashboard_path = "data/exports/property_owners_dashboard.html"
+        Path(dashboard_path).parent.mkdir(parents=True, exist_ok=True)
+        fig.write_html(dashboard_path)
+        print(f"✅ Dashboard saved: {dashboard_path}")
         
-        return fig
+        return dashboard_path
     
     def generate_summary_report(self) -> str:
         """Generate a comprehensive text summary report."""
@@ -381,15 +383,16 @@ def main():
     report = dashboard.generate_summary_report()
     print(report)
     
-    # Save report to file
-    report_path = "DEV_MAN/property_owners_summary_report.txt"
+    # Save summary report
+    report_path = "data/exports/property_owners_summary_report.txt"
+    Path(report_path).parent.mkdir(parents=True, exist_ok=True)
     with open(report_path, 'w') as f:
         f.write(report)
-    print(f"💾 Summary report saved: {report_path}")
+    print(f"✅ Summary report saved: {report_path}")
     
     # Create interactive dashboard
     print("\n📈 CREATING INTERACTIVE DASHBOARD...")
-    dashboard_path = "DEV_MAN/property_owners_dashboard.html"
+    dashboard_path = "data/exports/property_owners_dashboard.html"
     fig = dashboard.create_dashboard(dashboard_path)
     
     print(f"\n✅ DASHBOARD COMPLETE!")

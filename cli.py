@@ -123,7 +123,7 @@ def owner_analysis():
         console.print(report)
         
         # Export results
-        export_file = "DEV_MAN/owner_analysis_export.json"
+        export_file = "data/exports/owner_analysis_export.json"
         analyzer.export_owner_data(results, export_file)
         console.print(f"[green]📁 Analysis exported to: {export_file}[/green]")
         

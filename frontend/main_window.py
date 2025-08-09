@@ -223,6 +223,10 @@ class MainWindow(QMainWindow):
         activity_card = self._create_recent_activity_card()
         grid_layout.addWidget(activity_card, 2, 0, 1, 3)
         
+        # Pipeline Status Card (Real-time monitoring)
+        pipeline_card = self._create_pipeline_status_card()
+        grid_layout.addWidget(pipeline_card, 3, 0, 1, 3)
+        
         scroll_layout.addLayout(grid_layout)
         scroll_area.setWidget(scroll_content)
         scroll_area.setWidgetResizable(True)
@@ -893,6 +897,272 @@ class MainWindow(QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def _create_pipeline_status_card(self) -> QFrame:
+        """Create a pipeline status monitoring card."""
+        from PyQt5.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar
+        from PyQt5.QtGui import QFont
+        from PyQt5.QtCore import QTimer, Qt
+        import os
+        import time
+        
+        card = QFrame()
+        card.setFrameStyle(QFrame.Box)
+        card.setStyleSheet("""
+            QFrame {
+                background-color: #f8f9fa;
+                border: 2px solid #667eea;
+                border-radius: 8px;
+                padding: 15px;
+                margin: 5px;
+            }
+        """)
+        
+        layout = QVBoxLayout(card)
+        
+        # Header
+        header = QLabel("🚀 Pipeline Status Monitor")
+        header.setFont(QFont("Arial", 14, QFont.Bold))
+        header.setStyleSheet("color: #667eea; margin-bottom: 10px;")
+        layout.addWidget(header)
+        
+        # Status indicators
+        status_layout = QHBoxLayout()
+        
+        # Current step
+        self.current_step_label = QLabel("⏳ Waiting for pipeline...")
+        self.current_step_label.setStyleSheet("color: #666; font-weight: bold;")
+        status_layout.addWidget(self.current_step_label)
+        
+        # Progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #ddd;
+                border-radius: 5px;
+                text-align: center;
+                background-color: #f0f0f0;
+            }
+            QProgressBar::chunk {
+                background-color: #667eea;
+                border-radius: 3px;
+            }
+        """)
+        status_layout.addWidget(self.progress_bar)
+        
+        layout.addLayout(status_layout)
+        
+        # Details
+        self.pipeline_details = QLabel("No active pipeline detected")
+        self.pipeline_details.setStyleSheet("color: #666; font-size: 12px;")
+        layout.addWidget(self.pipeline_details)
+        
+        # Control buttons
+        button_layout = QHBoxLayout()
+        
+        refresh_btn = QPushButton("🔄 Refresh Status")
+        refresh_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #667eea;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #5a6fd8;
+            }
+        """)
+        refresh_btn.clicked.connect(self._refresh_pipeline_status)
+        button_layout.addWidget(refresh_btn)
+        
+        view_logs_btn = QPushButton("📋 View Logs")
+        view_logs_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #28a745;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+            }
+        """)
+        view_logs_btn.clicked.connect(self._view_pipeline_logs)
+        button_layout.addWidget(view_logs_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Set up auto-refresh timer
+        self.pipeline_timer = QTimer()
+        self.pipeline_timer.timeout.connect(self._refresh_pipeline_status)
+        self.pipeline_timer.start(5000)  # Refresh every 5 seconds
+        
+        return card
+    
+    def _refresh_pipeline_status(self):
+        """Refresh the pipeline status display."""
+        try:
+            # Check for recent pipeline activity
+            import glob
+            import time
+            from pathlib import Path
+            
+            # Look for recent export files
+            export_files = glob.glob("data/exports/pete_export_*.csv") + glob.glob("data/exports/pete_export_*.xlsx")
+            owner_files = glob.glob("data/exports/owner_objects_summary_*.csv") + glob.glob("data/exports/owner_objects_summary_*.xlsx")
+            
+            # Check for recent data files
+            data_files = glob.glob("data/processed/enhanced_data/*/enhanced_data.csv")
+            
+            if export_files or owner_files:
+                # Pipeline completed recently
+                self.current_step_label.setText("✅ Pipeline Completed!")
+                self.current_step_label.setStyleSheet("color: #28a745; font-weight: bold;")
+                self.progress_bar.setValue(100)
+                
+                latest_export = max(export_files, key=os.path.getctime) if export_files else "None"
+                latest_owner = max(owner_files, key=os.path.getctime) if owner_files else "None"
+                
+                # Calculate completion time
+                completion_time = os.path.getctime(latest_export if export_files else latest_owner)
+                time_since_completion = time.time() - completion_time
+                
+                self.pipeline_details.setText(
+                    f"Latest export: {os.path.basename(latest_export) if export_files else 'None'}\n"
+                    f"Latest owner analysis: {os.path.basename(latest_owner) if owner_files else 'None'}\n"
+                    f"Completed {int(time_since_completion)}s ago"
+                )
+                
+            elif data_files:
+                # Pipeline in progress
+                latest_data = max(data_files, key=os.path.getctime)
+                file_time = os.path.getctime(latest_data)
+                time_diff = time.time() - file_time
+                
+                if time_diff < 300:  # Within 5 minutes
+                    self.current_step_label.setText("🔄 Pipeline Running...")
+                    self.current_step_label.setStyleSheet("color: #ffc107; font-weight: bold;")
+                    
+                    # Estimate progress and time remaining
+                    progress, eta = self._estimate_pipeline_progress(time_diff)
+                    self.progress_bar.setValue(progress)
+                    
+                    # Format ETA nicely
+                    if eta > 60:
+                        eta_text = f"{int(eta/60)}m {int(eta%60)}s remaining"
+                    else:
+                        eta_text = f"{int(eta)}s remaining"
+                    
+                    self.pipeline_details.setText(
+                        f"Processing data... (Last update: {int(time_diff)}s ago)\n"
+                        f"⏱️ Estimated: {eta_text}\n"
+                        f"📊 Progress: {progress}%"
+                    )
+                else:
+                    self.current_step_label.setText("⏸️ Pipeline Paused")
+                    self.current_step_label.setStyleSheet("color: #ffc107; font-weight: bold;")
+                    self.progress_bar.setValue(50)
+                    self.pipeline_details.setText("Pipeline may be paused or completed")
+                    
+            else:
+                # No recent activity
+                self.current_step_label.setText("⏳ No Active Pipeline")
+                self.current_step_label.setStyleSheet("color: #666; font-weight: bold;")
+                self.progress_bar.setValue(0)
+                self.pipeline_details.setText("Ready to start pipeline")
+                
+        except Exception as e:
+            self.pipeline_details.setText(f"Error checking status: {str(e)}")
+    
+    def _estimate_pipeline_progress(self, time_since_last_update: float) -> tuple[int, float]:
+        """
+        Estimate pipeline progress and time remaining based on typical timings.
+        
+        Args:
+            time_since_last_update: Seconds since last file update
+            
+        Returns:
+            tuple: (progress_percentage, estimated_seconds_remaining)
+        """
+        # Typical pipeline timings for 310K rows (based on our speed tests)
+        typical_timings = {
+            'load': 5,      # 5 seconds
+            'clean': 10,    # 10 seconds  
+            'filter': 5,    # 5 seconds
+            'phones': 15,   # 15 seconds
+            'owners': 30,   # 30 seconds
+            'mapping': 10,  # 10 seconds
+            'standardize': 5, # 5 seconds
+            'export_csv': 2,  # 2 seconds
+            'export_excel': 52, # 52 seconds (xlsxwriter) - 310K rows / 6000 rows/sec
+            'owner_excel': 34   # 34 seconds (xlsxwriter) - 270K rows / 8000 rows/sec
+        }
+        
+        total_expected_time = sum(typical_timings.values())
+        
+        # If we're in the export phase (after CSV is done), estimate based on Excel export
+        if time_since_last_update > 80:  # Likely in Excel export phase
+            # Assume we're in Excel export (52s) or owner Excel export (34s)
+            if time_since_last_update < 132:  # Still in main Excel export
+                progress = 85 + (time_since_last_update - 80) / 52 * 10  # 85-95%
+                eta = max(0, 52 - (time_since_last_update - 80))
+            else:  # In owner Excel export
+                progress = 95 + (time_since_last_update - 132) / 34 * 5  # 95-100%
+                eta = max(0, 34 - (time_since_last_update - 132))
+        else:
+            # Estimate based on typical progress
+            progress = min(85, (time_since_last_update / total_expected_time) * 85)
+            eta = max(0, total_expected_time - time_since_last_update)
+        
+        return int(progress), eta
+    
+    def _view_pipeline_logs(self):
+        """View pipeline logs."""
+        try:
+            import subprocess
+            import sys
+            
+            # Try to open the most recent log file
+            log_files = [
+                "backend.log",
+                "data/processed/enhanced_data/*/metadata.json",
+                "data/processed/owner_objects/*/summary.json"
+            ]
+            
+            for pattern in log_files:
+                import glob
+                files = glob.glob(pattern)
+                if files:
+                    latest_file = max(files, key=os.path.getctime)
+                    if sys.platform == "darwin":  # macOS
+                        subprocess.run(["open", latest_file])
+                    elif sys.platform == "win32":  # Windows
+                        subprocess.run(["notepad", latest_file])
+                    else:  # Linux
+                        subprocess.run(["xdg-open", latest_file])
+                    return
+            
+            # If no log files found, show a message
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self, 
+                "Pipeline Logs", 
+                "No recent log files found. Check the console output for pipeline status."
+            )
+            
+        except Exception as e:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self, 
+                "Error", 
+                f"Could not open logs: {str(e)}"
+            )
 
 def main():
     """Main entry point for the GUI application."""

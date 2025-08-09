@@ -591,8 +591,12 @@ def process_complete_pipeline_fast(filepath: Union[str, Path], export_excel: boo
         
         try:
             print(f"📊 Writing {len(df):,} rows, {len(df.columns)} columns to Excel...")
-            # Use openpyxl engine for more robust Excel creation
-            df.to_excel(excel_filename, index=False, engine='openpyxl')
+            # Use xlsxwriter for faster Excel export
+            try:
+                df.to_excel(excel_filename, index=False, engine='xlsxwriter')
+            except ImportError:
+                # Fallback to openpyxl if xlsxwriter not available
+                df.to_excel(excel_filename, index=False, engine='openpyxl')
             export_time = time.time() - export_start
             processor.step_times['export'] = export_time
             print(f"✅ Excel export complete: {excel_filename}")

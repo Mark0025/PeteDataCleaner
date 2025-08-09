@@ -19,8 +19,8 @@ import sys
 import psutil
 import os
 
-# Import Owner Object Analyzer
-from .owner_object_analyzer import OwnerObjectAnalyzer
+# Import Ultra-Fast Owner Object Analyzer
+from .ultra_fast_owner_analyzer import UltraFastOwnerObjectAnalyzer
 
 class UltraFastProcessor:
     """
@@ -269,11 +269,17 @@ class UltraFastProcessor:
         print(f"⏱️  Estimated analysis time: {estimated_time:.1f}s")
         
         try:
-            # Initialize Owner Object Analyzer
-            analyzer = OwnerObjectAnalyzer()
+            # Initialize Ultra-Fast Owner Object Analyzer
+            analyzer = UltraFastOwnerObjectAnalyzer()
             
-            # Run analysis
-            owner_objects, df_enhanced = analyzer.analyze_dataset(df)
+            # Convert to Polars for ultra-fast processing
+            pl_df = pl.from_pandas(df)
+            
+            # Run ultra-fast analysis
+            owner_objects, pl_df_enhanced = analyzer.analyze_dataset_ultra_fast(pl_df)
+            
+            # Convert back to pandas for compatibility
+            df_enhanced = pl_df_enhanced.to_pandas()
             
             analysis_time = time.time() - step_start
             self.processing_stats['owner_analysis_time'] = analysis_time
@@ -637,7 +643,12 @@ def process_complete_pipeline_ultra_fast(filepath: Union[str, Path], export_exce
         
         try:
             print(f"📊 Writing {len(df):,} rows, {len(df.columns)} columns to Excel...")
-            df.to_excel(excel_filename, index=False, engine='openpyxl')
+            # Use xlsxwriter for faster Excel export
+            try:
+                df.to_excel(excel_filename, index=False, engine='xlsxwriter')
+            except ImportError:
+                # Fallback to openpyxl if xlsxwriter not available
+                df.to_excel(excel_filename, index=False, engine='openpyxl')
             export_time = time.time() - export_start
             processor.step_times['export'] = export_time
             print(f"✅ Excel export complete: {excel_filename}")
