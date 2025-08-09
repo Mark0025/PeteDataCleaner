@@ -7,7 +7,7 @@ Component for selecting and previewing data files from the upload directory.
 import os
 import shutil
 import pandas as pd
-from backend.utils import trailing_dot_cleanup as tdc
+from backend.utils.high_performance_processor import clean_dataframe_fast
 from typing import Optional, Callable
 from loguru import logger
 
@@ -160,7 +160,7 @@ class FileSelector(BaseComponent):
                 QMessageBox.critical(self, 'Upload Error', f'Failed to upload file: {e}')
     
     def preview_table(self):
-        """Preview the selected file contents."""
+        """Preview the selected file contents with progress feedback."""
         if not self.selected_file:
             QMessageBox.warning(self, 'No file selected', 'Please select a file to preview.')
             return
@@ -168,36 +168,67 @@ class FileSelector(BaseComponent):
         file_path = os.path.join(UPLOAD_DIR, self.selected_file)
         
         try:
+            # Show loading status
+            self.status_label.setText('📁 Loading file...')
+            self.preview_btn.setEnabled(False)
+            self.map_btn.setEnabled(False)
+            
             # Load the file based on extension
             ext = os.path.splitext(file_path)[1].lower()
             if ext == '.csv':
+                self.status_label.setText('📊 Reading CSV file...')
                 df = pd.read_csv(file_path, low_memory=False)
             elif ext in ['.xls', '.xlsx']:
+                self.status_label.setText('📊 Reading Excel file...')
                 df = pd.read_excel(file_path)
             else:
                 QMessageBox.warning(self, 'Unsupported file', f'Unsupported file type: {ext}')
                 return
             
-            # Auto strip trailing .0
-            df = tdc.clean_dataframe(df)
-            # Optionally hide empty columns
+            self.status_label.setText(f'🧹 Cleaning data ({len(df.columns)} columns)...')
+            
+            # Auto strip trailing .0 using fast processor
+            df = clean_dataframe_fast(df)
+            
+            # Auto-hide columns using fast processor
             if self.hide_empty_chk.isChecked():
-                from backend.utils.data_type_converter import DataTypeConverter
+                self.status_label.setText('👁️ Hiding empty columns...')
+                from backend.utils.high_performance_processor import filter_empty_columns_fast
                 from backend.utils import preferences as prefs
-                before_cols = set(df.columns)
-                df = DataTypeConverter.filter_empty_columns(df, threshold=0.9)
-                removed = list(before_cols - set(df.columns))
-                if removed:
-                    prefs.add_hidden_headers(removed)
+                
+                original_columns = list(df.columns)
+                df = filter_empty_columns_fast(df, threshold=0.9)
+                hidden_columns = len(original_columns) - len(df.columns)
+                
+                # Save hidden columns to preferences for future use
+                if hidden_columns > 0:
+                    removed_columns = list(set(original_columns) - set(df.columns))
+                    prefs.add_hidden_headers(removed_columns)
+                    self.status_label.setText(f'👁️ Hidden {hidden_columns} empty columns (≥90% empty)')
+                else:
+                    self.status_label.setText('👁️ No empty columns to hide')
+            else:
+                hidden_columns = 0
+            
             self.df = df
             self._display_preview(df)
             self.map_btn.setEnabled(True)
+            self.preview_btn.setEnabled(True)
             
-            logger.info(f'Previewed file: {self.selected_file} ({len(df)} rows, {len(df.columns)} columns)')
+            # Show completion status with details
+            status_text = f'✅ Preview ready: {len(df)} rows, {len(df.columns)} columns'
+            if hidden_columns > 0:
+                status_text += f' ({hidden_columns} columns auto-hidden)'
+            
+            self.status_label.setText(status_text)
+            
+            logger.info(f'Previewed file: {self.selected_file} ({len(df)} rows, {len(df.columns)} columns, {hidden_columns} hidden)')
             
         except Exception as e:
             logger.error(f'Error reading file: {e}')
             QMessageBox.critical(self, 'Error', f'Error reading file: {e}')
+            self.status_label.setText('❌ Error loading file')
+            self.preview_btn.setEnabled(True)
     
     def _display_preview(self, df: pd.DataFrame):
         """Display file preview in table widget."""
@@ -209,9 +240,9 @@ class FileSelector(BaseComponent):
         # Create new table
         self.table_widget = QTableWidget()
         
-        # Configure table size
+        # Configure table size - show more rows for better visibility
         rules = DEFAULT_RULES_CONFIG
-        preview_rows = min(rules.get('preview_row_count', 10), len(df))
+        preview_rows = min(rules.get('preview_row_count', 50), len(df))  # Increased from 10 to 50
         preview_cols = len(df.columns)
         
         self.table_widget.setRowCount(preview_rows)
@@ -231,7 +262,14 @@ class FileSelector(BaseComponent):
         self.table_widget.resizeColumnsToContents()
         
         self.layout.addWidget(self.table_widget)
-        self.status_label.setText(f'Previewing: {self.selected_file} ({len(df)} rows, {len(df.columns)} cols)')
+        
+        # Show detailed preview information
+        total_rows = len(df)
+        displayed_rows = min(50, total_rows)  # Match the preview_rows calculation
+        status_text = f'📊 Previewing: {self.selected_file} ({displayed_rows}/{total_rows} rows, {len(df.columns)} columns)'
+        if total_rows > displayed_rows:
+            status_text += f' (showing first {displayed_rows} rows)'
+        self.status_label.setText(status_text)
     
     def map_to_pete_headers(self):
         """Initiate mapping to Pete headers."""

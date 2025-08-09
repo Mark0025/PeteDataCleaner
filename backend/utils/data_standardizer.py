@@ -15,7 +15,7 @@ Frontend components should import and use this module.
 import os
 import json
 import pandas as pd
-from backend.utils import trailing_dot_cleanup as tdc
+from backend.utils.high_performance_processor import clean_dataframe_fast
 from typing import List, Dict, Any, Optional, Tuple
 from rich.console import Console
 from rich.table import Table
@@ -29,7 +29,7 @@ import numpy as np
 
 console = Console()
 
-MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'DEV_MAN', 'mappings'))
+MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'mappings'))
 RULES_PATH = os.path.join(MAPPINGS_DIR, 'mapping_rules.json')
 os.makedirs(MAPPINGS_DIR, exist_ok=True)
 
@@ -84,8 +84,8 @@ class DataStandardizer:
             df = df.loc[:, df.isnull().mean() < threshold]
             logger.info(f"Filtered columns with more than {threshold*100}% NaN/empty values")
 
-        # Auto strip trailing .0 from numeric-like strings
-        df = tdc.clean_dataframe(df)
+        # Auto strip trailing .0 from numeric-like strings using fast processor
+        df = clean_dataframe_fast(df)
         return df
 
     @staticmethod
