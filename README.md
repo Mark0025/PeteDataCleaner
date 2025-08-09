@@ -11,29 +11,38 @@
 
 ## 🚀 Quick Start Guide
 
+### 📋 **Prerequisites**
+- **Python 3.12 or higher** installed on your system
+- **Git** for cloning the repository
+- **Internet connection** for downloading dependencies
+
 ### 1. Install & Launch
 
 ```bash
-# Clone and setup
+# Clone the repository
 git clone https://github.com/Mark0025/PeteDataCleaner.git
 cd PeteDataCleaner
 
-# Install dependencies
+# Install uv (fast Python package manager)
 curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install all dependencies
 uv sync
 
 # Launch the application
 uv run python frontend/main_window.py
 ```
 
-### 2. Ultra-Fast Data Processing (2-Minute Workflow)
+**That's it!** The GUI will open and you're ready to start processing data.
 
-1. **📁 Upload File** → Select your CSV/Excel file
-2. **⚡ Auto-Processing** → Ultra-fast pipeline with Polars (50x faster than Pandas)
-3. **📞 Phone Prioritization** → Smart selection of best phone numbers for Pete
-4. **🏠 Owner Analysis** → Enhanced owner objects with phone quality scoring
-5. **🎯 Custom Export** → Flexible export options for Pete CRM and investor analysis
-6. **💾 Export** → Download your processed data in multiple formats
+### 2. Your First Data Processing (2-Minute Workflow)
+
+1. **📁 Upload File** → Click "Upload File" and select your CSV or Excel file
+2. **⚡ Auto-Processing** → Watch the ultra-fast pipeline process your data (50x faster!)
+3. **📞 Phone Prioritization** → Click "Prioritize Phones" to see smart phone analysis
+4. **🏠 Owner Analysis** → View enhanced owner objects with phone quality scoring
+5. **🎯 Custom Export** → Use the export options for Pete CRM or investor analysis
+6. **💾 Export** → Download your processed data in CSV or Excel format
 
 **Time Saved:** 90% faster processing with enhanced analysis!
 
@@ -166,7 +175,7 @@ PeteDataCleaner/
 
 **What happens behind the scenes:**
 
-- �� Pete automatically detects your file format
+- 🔍 Pete automatically detects your file format
 - ⚡ **Ultra-fast processing** with Polars (50x faster)
 - 🧹 Strips trailing `.0` from phone numbers (no more `4098880401.0`)
 - 📊 Shows you a preview of your cleaned data
