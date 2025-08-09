@@ -306,6 +306,7 @@ class MainWindow(QMainWindow):
         actions_layout = QGridLayout()
         
         actions = [
+            ("🚀 Run Pipeline", self._run_ultra_fast_pipeline),
             ("📁 Upload New Data", self.show_file_selector),
             ("🔄 Load Recent Preset", self.show_recent_presets),
             ("🏠 View Owner Analysis", self.show_owner_analysis),
@@ -508,10 +509,14 @@ class MainWindow(QMainWindow):
         return card
     
     def show_owner_analysis(self):
-        """Show owner analysis interface."""
+        """Show enhanced owner analysis interface with table and features."""
         self.clear_layout()
         
-        from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton
+        from PyQt5.QtWidgets import (
+            QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget, 
+            QTableWidgetItem, QScrollArea, QWidget, QFrame, QComboBox,
+            QLineEdit, QGridLayout, QSplitter
+        )
         from PyQt5.QtCore import Qt
         from PyQt5.QtGui import QFont
         
@@ -519,26 +524,118 @@ class MainWindow(QMainWindow):
         analysis_widget = QWidget()
         analysis_layout = QVBoxLayout(analysis_widget)
         
-        # Header
-        header = QLabel("🏠 Owner Analysis")
+        # Header with action buttons
+        header_layout = QHBoxLayout()
+        
+        header = QLabel("🏠 Enhanced Owner Analysis")
         header.setFont(QFont("Arial", 18, QFont.Bold))
         header.setStyleSheet("color: #667eea; margin: 20px;")
-        analysis_layout.addWidget(header, alignment=Qt.AlignCenter)
+        header_layout.addWidget(header)
         
-        # Analysis content
+        # Load full data button
+        load_btn = QPushButton("📊 Load Full Owner Data")
+        load_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #28a745;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 5px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+            }
+        """)
+        load_btn.clicked.connect(self._load_full_owner_data)
+        header_layout.addWidget(load_btn)
+        
+        # Custom export button
+        export_btn = QPushButton("📤 Custom Export")
+        export_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #17a2b8;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 5px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #138496;
+            }
+        """)
+        export_btn.clicked.connect(self._show_custom_export_ui)
+        header_layout.addWidget(export_btn)
+        
+        analysis_layout.addLayout(header_layout)
+        
+        # Analysis summary cards
         if self.dashboard_data and self.dashboard_data['analysis']['owner_analysis']:
             owner_data = self.dashboard_data['analysis']['owner_analysis']
             
-            # Create analysis cards
-            analysis_card = self._create_dashboard_card(
-                "📊 Analysis Summary",
+            # Create summary cards in a grid
+            summary_layout = QGridLayout()
+            
+            summary_card1 = self._create_dashboard_card(
+                "👥 Owner Summary",
                 [
                     ("Total Owners", f"{owner_data.get('total_owners', 0):,}"),
                     ("Business Entities", f"{owner_data.get('business_entities', 0):,}"),
-                    ("Multi-Property Owners", f"{owner_data.get('multi_property_owners', 0):,}")
+                    ("Multi-Property", f"{owner_data.get('multi_property_owners', 0):,}")
                 ]
             )
-            analysis_layout.addWidget(analysis_card)
+            summary_layout.addWidget(summary_card1, 0, 0)
+            
+            summary_card2 = self._create_dashboard_card(
+                "🎯 High-Value Targets",
+                [
+                    ("High Confidence", f"{owner_data.get('high_confidence_targets', 0):,}"),
+                    ("Total Properties", f"{owner_data.get('total_properties', 0):,}"),
+                    ("Total Value", f"${owner_data.get('total_value', 0):,.0f}")
+                ]
+            )
+            summary_layout.addWidget(summary_card2, 0, 1)
+            
+            analysis_layout.addLayout(summary_layout)
+            
+            # Filters and search
+            filter_layout = QHBoxLayout()
+            
+            filter_label = QLabel("Filter by:")
+            filter_layout.addWidget(filter_label)
+            
+            self.owner_filter_combo = QComboBox()
+            self.owner_filter_combo.addItems(["All Owners", "Business Entities", "Multi-Property", "High Confidence"])
+            filter_layout.addWidget(self.owner_filter_combo)
+            
+            search_label = QLabel("Search:")
+            filter_layout.addWidget(search_label)
+            
+            self.owner_search = QLineEdit()
+            self.owner_search.setPlaceholderText("Search by name, address, or phone...")
+            filter_layout.addWidget(self.owner_search)
+            
+            analysis_layout.addLayout(filter_layout)
+            
+            # Owner data table
+            self.owner_table = QTableWidget()
+            self.owner_table.setColumnCount(8)
+            self.owner_table.setHorizontalHeaderLabels([
+                "Owner Name", "Property Address", "Phone Quality", "Best Contact", 
+                "Property Count", "Total Value", "LLC Status", "Skip Trace"
+            ])
+            
+            # Set table properties
+            self.owner_table.setAlternatingRowColors(True)
+            self.owner_table.setSelectionBehavior(QTableWidget.SelectRows)
+            self.owner_table.setEditTriggers(QTableWidget.NoEditTriggers)
+            
+            # Add sample data (will be replaced when full data is loaded)
+            self._populate_owner_table_sample()
+            
+            analysis_layout.addWidget(self.owner_table)
+            
         else:
             no_data = QLabel("No owner analysis data available. Upload data and run analysis first.")
             no_data.setStyleSheet("color: #666; font-style: italic; padding: 20px;")
@@ -1008,6 +1105,14 @@ class MainWindow(QMainWindow):
     def _refresh_pipeline_status(self):
         """Refresh the pipeline status display."""
         try:
+            # Check if widgets still exist before accessing them
+            if not hasattr(self, 'current_step_label') or self.current_step_label is None:
+                return
+            if not hasattr(self, 'progress_bar') or self.progress_bar is None:
+                return
+            if not hasattr(self, 'pipeline_details') or self.pipeline_details is None:
+                return
+                
             # Check for recent pipeline activity
             import glob
             import time
@@ -1022,22 +1127,26 @@ class MainWindow(QMainWindow):
             
             if export_files or owner_files:
                 # Pipeline completed recently
-                self.current_step_label.setText("✅ Pipeline Completed!")
-                self.current_step_label.setStyleSheet("color: #28a745; font-weight: bold;")
-                self.progress_bar.setValue(100)
-                
-                latest_export = max(export_files, key=os.path.getctime) if export_files else "None"
-                latest_owner = max(owner_files, key=os.path.getctime) if owner_files else "None"
-                
-                # Calculate completion time
-                completion_time = os.path.getctime(latest_export if export_files else latest_owner)
-                time_since_completion = time.time() - completion_time
-                
-                self.pipeline_details.setText(
-                    f"Latest export: {os.path.basename(latest_export) if export_files else 'None'}\n"
-                    f"Latest owner analysis: {os.path.basename(latest_owner) if owner_files else 'None'}\n"
-                    f"Completed {int(time_since_completion)}s ago"
-                )
+                try:
+                    self.current_step_label.setText("✅ Pipeline Completed!")
+                    self.current_step_label.setStyleSheet("color: #28a745; font-weight: bold;")
+                    self.progress_bar.setValue(100)
+                    
+                    latest_export = max(export_files, key=os.path.getctime) if export_files else "None"
+                    latest_owner = max(owner_files, key=os.path.getctime) if owner_files else "None"
+                    
+                    # Calculate completion time
+                    completion_time = os.path.getctime(latest_export if export_files else latest_owner)
+                    time_since_completion = time.time() - completion_time
+                    
+                    self.pipeline_details.setText(
+                        f"Latest export: {os.path.basename(latest_export) if export_files else 'None'}\n"
+                        f"Latest owner analysis: {os.path.basename(latest_owner) if owner_files else 'None'}\n"
+                        f"Completed {int(time_since_completion)}s ago"
+                    )
+                except RuntimeError:
+                    # Widget was deleted, stop refreshing
+                    return
                 
             elif data_files:
                 # Pipeline in progress
@@ -1046,39 +1155,56 @@ class MainWindow(QMainWindow):
                 time_diff = time.time() - file_time
                 
                 if time_diff < 300:  # Within 5 minutes
-                    self.current_step_label.setText("🔄 Pipeline Running...")
-                    self.current_step_label.setStyleSheet("color: #ffc107; font-weight: bold;")
-                    
-                    # Estimate progress and time remaining
-                    progress, eta = self._estimate_pipeline_progress(time_diff)
-                    self.progress_bar.setValue(progress)
-                    
-                    # Format ETA nicely
-                    if eta > 60:
-                        eta_text = f"{int(eta/60)}m {int(eta%60)}s remaining"
-                    else:
-                        eta_text = f"{int(eta)}s remaining"
-                    
-                    self.pipeline_details.setText(
-                        f"Processing data... (Last update: {int(time_diff)}s ago)\n"
-                        f"⏱️ Estimated: {eta_text}\n"
-                        f"📊 Progress: {progress}%"
-                    )
+                    try:
+                        self.current_step_label.setText("🔄 Pipeline Running...")
+                        self.current_step_label.setStyleSheet("color: #ffc107; font-weight: bold;")
+                        
+                        # Estimate progress and time remaining
+                        progress, eta = self._estimate_pipeline_progress(time_diff)
+                        self.progress_bar.setValue(progress)
+                        
+                        # Format ETA nicely
+                        if eta > 60:
+                            eta_text = f"{int(eta/60)}m {int(eta%60)}s remaining"
+                        else:
+                            eta_text = f"{int(eta)}s remaining"
+                        
+                        self.pipeline_details.setText(
+                            f"Processing data... (Last update: {int(time_diff)}s ago)\n"
+                            f"⏱️ Estimated: {eta_text}\n"
+                            f"📊 Progress: {progress}%"
+                        )
+                    except RuntimeError:
+                        # Widget was deleted, stop refreshing
+                        return
                 else:
-                    self.current_step_label.setText("⏸️ Pipeline Paused")
-                    self.current_step_label.setStyleSheet("color: #ffc107; font-weight: bold;")
-                    self.progress_bar.setValue(50)
-                    self.pipeline_details.setText("Pipeline may be paused or completed")
+                    try:
+                        self.current_step_label.setText("⏸️ Pipeline Paused")
+                        self.current_step_label.setStyleSheet("color: #ffc107; font-weight: bold;")
+                        self.progress_bar.setValue(50)
+                        self.pipeline_details.setText("Pipeline may be paused or completed")
+                    except RuntimeError:
+                        # Widget was deleted, stop refreshing
+                        return
                     
             else:
                 # No recent activity
-                self.current_step_label.setText("⏳ No Active Pipeline")
-                self.current_step_label.setStyleSheet("color: #666; font-weight: bold;")
-                self.progress_bar.setValue(0)
-                self.pipeline_details.setText("Ready to start pipeline")
+                try:
+                    self.current_step_label.setText("⏳ No Active Pipeline")
+                    self.current_step_label.setStyleSheet("color: #666; font-weight: bold;")
+                    self.progress_bar.setValue(0)
+                    self.pipeline_details.setText("Ready to start pipeline")
+                except RuntimeError:
+                    # Widget was deleted, stop refreshing
+                    return
                 
         except Exception as e:
-            self.pipeline_details.setText(f"Error checking status: {str(e)}")
+            try:
+                if hasattr(self, 'pipeline_details') and self.pipeline_details is not None:
+                    self.pipeline_details.setText(f"Error checking status: {str(e)}")
+            except RuntimeError:
+                # Widget was deleted, ignore error
+                pass
     
     def _estimate_pipeline_progress(self, time_since_last_update: float) -> tuple[int, float]:
         """
@@ -1163,6 +1289,242 @@ class MainWindow(QMainWindow):
                 "Error", 
                 f"Could not open logs: {str(e)}"
             )
+
+    def _load_full_owner_data(self):
+        """Load the full owner objects data for detailed analysis."""
+        try:
+            from backend.utils.owner_persistence_manager import load_property_owners_persistent
+            from PyQt5.QtWidgets import QMessageBox
+            
+            # Show loading message
+            QMessageBox.information(self, "Loading Data", "Loading 269,669 owner objects... This may take a moment.")
+            
+            # Load the full data
+            owner_objects, enhanced_df = load_property_owners_persistent()
+            
+            if owner_objects:
+                self.full_owner_objects = owner_objects
+                self.enhanced_df = enhanced_df
+                self._populate_owner_table_full()
+                
+                QMessageBox.information(self, "Success", f"Loaded {len(owner_objects):,} owner objects successfully!")
+            else:
+                QMessageBox.warning(self, "No Data", "No owner objects found. Run the pipeline first.")
+                
+        except Exception as e:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "Error", f"Failed to load owner data: {str(e)}")
+    
+    def _populate_owner_table_sample(self):
+        """Populate the owner table with sample data."""
+        # Add sample rows to show the table structure
+        sample_data = [
+            ["John Smith", "123 Main St", "8/10", "Mobile", "2", "$450,000", "Individual", "High"],
+            ["ABC Properties LLC", "456 Oak Ave", "6/10", "Landline", "5", "$1,200,000", "LLC", "Medium"],
+            ["Mary Johnson", "789 Pine Rd", "9/10", "Mobile", "1", "$320,000", "Individual", "High"],
+            ["XYZ Holdings", "321 Elm St", "7/10", "Mobile", "8", "$2,100,000", "LLC", "High"],
+            ["Bob Wilson", "654 Maple Dr", "5/10", "Landline", "1", "$280,000", "Individual", "Medium"]
+        ]
+        
+        self.owner_table.setRowCount(len(sample_data))
+        
+        for row, data in enumerate(sample_data):
+            for col, value in enumerate(data):
+                item = QTableWidgetItem(str(value))
+                self.owner_table.setItem(row, col, item)
+        
+        # Add note about loading full data
+        note_item = QTableWidgetItem("📊 Click 'Load Full Owner Data' to see all 269,669 owners")
+        note_item.setBackground(Qt.lightGray)
+        self.owner_table.insertRow(0)
+        self.owner_table.setItem(0, 0, note_item)
+        self.owner_table.setSpan(0, 0, 1, 8)  # Span across all columns
+    
+    def _populate_owner_table_full(self):
+        """Populate the owner table with full owner objects data."""
+        if not hasattr(self, 'full_owner_objects') or not self.full_owner_objects:
+            return
+        
+        # Get first 1000 owners for display (to avoid overwhelming the UI)
+        display_owners = self.full_owner_objects[:1000]
+        
+        self.owner_table.setRowCount(len(display_owners))
+        
+        for row, owner in enumerate(display_owners):
+            # Owner Name
+            name = owner.owner_name if hasattr(owner, 'owner_name') else "Unknown"
+            self.owner_table.setItem(row, 0, QTableWidgetItem(name))
+            
+            # Property Address
+            address = owner.property_address if hasattr(owner, 'property_address') else "Unknown"
+            self.owner_table.setItem(row, 1, QTableWidgetItem(address))
+            
+            # Phone Quality
+            phone_quality = f"{owner.phone_quality_score}/10" if hasattr(owner, 'phone_quality_score') else "N/A"
+            self.owner_table.setItem(row, 2, QTableWidgetItem(phone_quality))
+            
+            # Best Contact
+            best_contact = owner.best_contact_method if hasattr(owner, 'best_contact_method') else "Unknown"
+            self.owner_table.setItem(row, 3, QTableWidgetItem(best_contact))
+            
+            # Property Count
+            prop_count = str(owner.property_count) if hasattr(owner, 'property_count') else "1"
+            self.owner_table.setItem(row, 4, QTableWidgetItem(prop_count))
+            
+            # Total Value
+            total_value = f"${owner.total_property_value:,.0f}" if hasattr(owner, 'total_property_value') else "$0"
+            self.owner_table.setItem(row, 5, QTableWidgetItem(total_value))
+            
+            # LLC Status
+            llc_status = "LLC" if hasattr(owner, 'is_business_owner') and owner.is_business_owner else "Individual"
+            self.owner_table.setItem(row, 6, QTableWidgetItem(llc_status))
+            
+            # Skip Trace Priority
+            if hasattr(owner, 'confidence_score'):
+                if owner.confidence_score >= 0.8:
+                    priority = "High"
+                elif owner.confidence_score >= 0.6:
+                    priority = "Medium"
+                else:
+                    priority = "Low"
+            else:
+                priority = "Unknown"
+            self.owner_table.setItem(row, 7, QTableWidgetItem(priority))
+        
+        # Add note about total count
+        note_item = QTableWidgetItem(f"📊 Showing first 1,000 of {len(self.full_owner_objects):,} total owners")
+        note_item.setBackground(Qt.lightGray)
+        self.owner_table.insertRow(0)
+        self.owner_table.setItem(0, 0, note_item)
+        self.owner_table.setSpan(0, 0, 1, 8)  # Span across all columns
+    
+    def _show_custom_export_ui(self):
+        """Show the custom export UI for owner data."""
+        try:
+            from frontend.components.custom_export.custom_export_ui import CustomExportUI
+            from PyQt5.QtWidgets import QDialog
+            
+            # Create dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Custom Export - Owner Analysis")
+            dialog.resize(1000, 700)
+            
+            # Create custom export UI
+            export_ui = CustomExportUI()
+            
+            # If we have full owner data, pass it to the export UI
+            if hasattr(self, 'full_owner_objects') and self.full_owner_objects:
+                # Convert owner objects to exportable format
+                export_data = []
+                for owner in self.full_owner_objects[:1000]:  # Limit for export
+                    export_data.append({
+                        'owner_name': getattr(owner, 'owner_name', 'Unknown'),
+                        'property_address': getattr(owner, 'property_address', 'Unknown'),
+                        'phone_quality': getattr(owner, 'phone_quality_score', 0),
+                        'best_contact': getattr(owner, 'best_contact_method', 'Unknown'),
+                        'property_count': getattr(owner, 'property_count', 1),
+                        'total_value': getattr(owner, 'total_property_value', 0),
+                        'llc_status': 'LLC' if getattr(owner, 'is_business_owner', False) else 'Individual',
+                        'confidence_score': getattr(owner, 'confidence_score', 0)
+                    })
+                
+                export_ui.set_export_data(export_data)
+            
+            # Add to dialog
+            dialog_layout = QVBoxLayout(dialog)
+            dialog_layout.addWidget(export_ui)
+            
+            # Show dialog
+            dialog.exec_()
+            
+        except Exception as e:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "Error", f"Failed to open custom export UI: {str(e)}")
+
+    def _run_ultra_fast_pipeline(self):
+        """Run the ultra-fast pipeline on data in the upload folder."""
+        try:
+            from PyQt5.QtWidgets import QMessageBox, QProgressDialog
+            from PyQt5.QtCore import Qt, QThread, pyqtSignal
+            import os
+            import glob
+            
+            # Check if there are files in the upload folder
+            upload_files = glob.glob("upload/*.csv") + glob.glob("upload/*.xlsx")
+            
+            if not upload_files:
+                QMessageBox.warning(self, "No Data", "No CSV or Excel files found in the upload folder. Please add files to upload/ first.")
+                return
+            
+            # Show confirmation dialog
+            reply = QMessageBox.question(
+                self, 
+                "Run Pipeline", 
+                f"Found {len(upload_files)} file(s) in upload folder:\n" + 
+                "\n".join([os.path.basename(f) for f in upload_files[:3]]) +
+                ("\n..." if len(upload_files) > 3 else "") +
+                "\n\nRun the ultra-fast pipeline on this data?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            
+            if reply == QMessageBox.No:
+                return
+            
+            # Create progress dialog
+            progress = QProgressDialog("Running Ultra-Fast Pipeline...", "Cancel", 0, 100, self)
+            progress.setWindowModality(Qt.WindowModal)
+            progress.setAutoClose(False)
+            progress.show()
+            
+            # Run pipeline in background thread
+            class PipelineThread(QThread):
+                progress_updated = pyqtSignal(int, str)
+                finished = pyqtSignal(bool, str)
+                
+                def run(self):
+                    try:
+                        # Import and run the pipeline
+                        from test_ultra_fast_pipeline import run_ultra_fast_pipeline
+                        
+                        # Update progress
+                        self.progress_updated.emit(10, "Loading data...")
+                        
+                        # Run the pipeline
+                        result = run_ultra_fast_pipeline()
+                        
+                        if result:
+                            self.progress_updated.emit(100, "Pipeline completed successfully!")
+                            self.finished.emit(True, "Pipeline completed successfully!")
+                        else:
+                            self.finished.emit(False, "Pipeline failed")
+                            
+                    except Exception as e:
+                        self.finished.emit(False, f"Pipeline error: {str(e)}")
+            
+            # Create and start thread
+            self.pipeline_thread = PipelineThread()
+            self.pipeline_thread.progress_updated.connect(progress.setValue)
+            self.pipeline_thread.progress_updated.connect(lambda val, text: progress.setLabelText(text))
+            self.pipeline_thread.finished.connect(progress.close)
+            self.pipeline_thread.finished.connect(self._on_pipeline_finished)
+            
+            self.pipeline_thread.start()
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to start pipeline: {str(e)}")
+    
+    def _on_pipeline_finished(self, success: bool, message: str):
+        """Handle pipeline completion."""
+        from PyQt5.QtWidgets import QMessageBox
+        
+        if success:
+            QMessageBox.information(self, "Success", f"{message}\n\nYou can now view the enhanced owner analysis!")
+            # Refresh dashboard data
+            self._initialize_user_system()
+            self.show_dashboard()
+        else:
+            QMessageBox.critical(self, "Pipeline Failed", message)
 
 def main():
     """Main entry point for the GUI application."""

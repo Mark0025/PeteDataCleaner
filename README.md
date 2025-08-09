@@ -12,6 +12,7 @@
 ## 🚀 Quick Start Guide
 
 ### 📋 **Prerequisites**
+
 - **Python 3.12 or higher** installed on your system
 - **Git** for cloning the repository
 - **Internet connection** for downloading dependencies
