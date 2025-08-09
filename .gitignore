@@ -34,6 +34,21 @@ upload/
 *.pickle
 *.pickle.gz
 
+# === Data Files & Generated Content ===
+*.pkl
+*.h5
+*.hdf5
+*.parquet
+*.feather
+*.pkl.gz
+*.pickle.gz
+DEV_MAN/property_owners/owner_objects/**/*.pkl
+DEV_MAN/property_owners/owner_objects/**/*.pickle
+DEV_MAN/users/dashboards/*.html
+DEV_MAN/presets/saved_presets/**/preset_report.md
+DEV_MAN/whatsworking/*.png
+DEV_MAN/whatsworking/*.html
+
 # === IDE & Editor Config ===
 .vscode/
 .idea/
