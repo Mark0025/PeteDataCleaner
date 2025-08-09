@@ -1,364 +1,348 @@
-Absolutely! Here’s a comprehensive, top-down, tree-mapped, and verbose report of your codebase as it stands now, including what it can do, what it cannot do, and how everything is connected.
+# 🎯 Pete Data Cleaner
+
+**Smart data preparation assistant that transforms messy spreadsheets into clean, Pete-ready data.**
+
+[![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
+[![PyQt5](https://img.shields.io/badge/PyQt5-5.15+-green.svg)](https://pypi.org/project/PyQt5/)
+[![Tests](https://img.shields.io/badge/Tests-16%20passed-brightgreen.svg)](https://github.com/Mark0025/PeteDataCleaner)
 
 ---
 
-# 📁 Project Structure (Tree Map)
+## 🚀 What Pete Data Cleaner Does
+
+Pete Data Cleaner is your **smart data preparation assistant** that transforms messy spreadsheets into clean, Pete-ready data. Think of it as having a data expert who knows exactly what Pete needs and automatically fixes common problems.
+
+### 🎯 The Problem We Solve
+
+**Before Pete Data Cleaner:**
+
+- 📱 Phone numbers look like: `4098880401.0`, `8702853184.0` (with annoying .0 endings)
+- 📊 Spreadsheets have 30+ phone columns but Pete only needs 5
+- 🗂️ Column names are messy: `Phone 1`, `Phone_1`, `phone1`, `PHONE1`
+- 📋 Empty columns everywhere cluttering your view
+- ⏰ Hours spent manually cleaning and organizing data
+
+**After Pete Data Cleaner:**
+
+- 📱 Clean phone numbers: `4098880401`, `8702853184`
+- 🎯 Smart selection of the 5 best phone numbers for Pete
+- 🏷️ Consistent, clean column names
+- 🧹 Hidden empty columns for clean workspace
+- ⚡ Minutes instead of hours
+
+---
+
+## 📦 Installation
+
+### Prerequisites
+
+- **Python 3.12+**
+- **Git**
+
+### Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/Mark0025/PeteDataCleaner.git
+cd PeteDataCleaner
+
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies
+uv sync
+
+# Run the application
+uv run python frontend/main_window.py
+```
+
+### Alternative Installation (pip)
+
+```bash
+# Clone and install
+git clone https://github.com/Mark0025/PeteDataCleaner.git
+cd PeteDataCleaner
+pip install -r requirements.txt
+python frontend/main_window.py
+```
+
+---
+
+## 🎮 How to Use Pete Data Cleaner
+
+### 1️⃣ **Upload Your Data**
+
+1. Launch the application: `uv run python frontend/main_window.py`
+2. Click **"Upload File"** and select your CSV or Excel file
+3. Pete automatically:
+   - 🔍 Detects your file format
+   - 🧹 Strips trailing `.0` from phone numbers
+   - 📊 Shows a preview of your cleaned data
+   - ✅ Validates that your data is ready for processing
+
+### 2️⃣ **Smart Data Preparation**
+
+Use the **Data Prep Editor** to organize your data:
+
+#### **Column Tools:**
+
+- **Hide/Show Columns:** Right-click columns to hide or show them
+- **Rename Columns:** Right-click → "Rename" to clean up column names
+- **Merge Columns:** Select multiple columns → "Merge" with custom delimiters
+- **Hide Empty ≥90%:** Checkbox to automatically hide mostly empty columns
+
+#### **Data Tools:**
+
+- **📞 Prioritize Phones:** Smart phone number selection
+- **🧹 Strip .0:** Remove trailing .0 from numeric strings
+- **📊 Sample Data:** Preview large datasets
+- **🔄 Transform Data:** Advanced data transformations
+
+### 3️⃣ **Phone Number Intelligence**
+
+Click **"📞 Prioritize Phones"** to see your phone data analysis:
+
+#### **What Pete Analyzes:**
+
+- 📊 **Status Analysis:** Shows counts of 'CORRECT', 'WRONG', 'UNKNOWN' numbers
+- 📱 **Type Analysis:** Categorizes by 'MOBILE', 'LANDLINE', 'VOIP'
+- 📞 **Call History:** Analyzes tags like `call_a01` (called once), `call_a05` (called 5 times)
+
+#### **Smart Selection Logic:**
+
+- ✅ **Priority 1:** CORRECT numbers (verified working)
+- 📱 **Priority 2:** MOBILE numbers (higher connection rate)
+- 📞 **Priority 3:** Numbers with fewer call attempts
+- ❌ **Excluded:** WRONG numbers (saves Pete time)
+
+### 4️⃣ **Pete Mapping**
+
+Map your cleaned columns to Pete's expected format:
+
+- 🎯 **Smart Suggestions:** Pete suggests the best matches for your columns
+- 🏷️ **Clean Headers:** Consistent, readable column names
+- ✅ **Validation:** Ensures all required Pete fields are mapped
+
+### 5️⃣ **Export & Done**
+
+Review your final data and export:
+
+- 📊 **Final Preview:** Clean, organized data ready for Pete
+- 💾 **Multiple Formats:** Export as CSV, Excel, or Pete's preferred format
+- ✅ **Quality Check:** Ensures data meets Pete's requirements
+
+---
+
+## 🔧 Key Features
+
+### ⚡ **Automatic .0 Cleanup**
+
+- **Problem:** Excel exports phone numbers as `4098880401.0`
+- **Solution:** Pete automatically strips the `.0` on upload
+- **Result:** Clean numbers like `4098880401`
+
+### 🎯 **Smart Phone Prioritization**
+
+- **Input:** 30 phone columns with mixed status
+- **Analysis:** Shows status distribution (CORRECT: 312, WRONG: 500, etc.)
+- **Output:** 5 best phones selected based on:
+  - 🥇 **CORRECT** status (verified working numbers)
+  - 📱 **MOBILE** type (higher connection success)
+  - 📞 **Call history** (prefer fewer attempts)
+  - ❌ **Exclude WRONG** numbers (saves time)
+
+### 🧹 **Hide Empty Columns**
+
+- **Problem:** Spreadsheets cluttered with empty columns
+- **Solution:** "Hide Empty ≥90%" checkbox
+- **Result:** Clean workspace showing only relevant data
+
+### 📊 **Version History**
+
+- **Undo/Redo:** Every change is tracked
+- **Version Names:** Descriptive names like "Prioritize Phones", "Strip .0"
+- **Rollback:** Return to any previous state
+
+### 🎨 **Clean Interface**
+
+- **Blue Headers:** Professional, readable design
+- **Intuitive Navigation:** Clear buttons and menus
+- **Responsive Layout:** Adapts to different screen sizes
+
+---
+
+## 📁 Project Structure
 
 ```
-peteGoogle/
-├── addresformater/
-│   ├── BarMinimumschema.json
-│   └── propertiesTemplate/
-├── backend/
-│   └── sheets_client.py
-├── DEV_MAN/
-│   ├── hello.py
-│   ├── plans/
-│   │   ├── Task.md
-│   │   └── current/
-│   │       ├── logging_and_backend_client.md
-│   │       └── rules_fetcher_utility.md
-│   ├── rules_comparison_report.md
-│   ├── rules_fetcher/
-│   │   ├── auto_update_descriptions.py
-│   │   ├── compare_rules.py
-│   │   ├── fetch_and_save_rules.py
-│   │   ├── fetch_rule.py
-│   │   ├── fetch_rule_gh.py
-│   │   ├── move_approved_rules.py
-│   │   ├── readme_parser.py
-│   │   ├── rules/
-│   │   │   ├── python_best_practices.cursorrules
-│   │   │   ├── python_developer.cursorrules
-│   │   │   └── python_projects_guide.cursorrules
-│   │   └── standardize_rules.py
-│   ├── standardization_report.md
-│   ├── description_update_report.md
-│   ├── move_rules_report.md
-│   └── PENDING_PLANS/
-│       └── adding_streamlitv1.md
-├── .cursor/
-│   └── rules/
-│       ├── ai_agent_planning.mdc
-│       ├── cursorrules.mdc
-│       ├── github.mdc
-│       └── uv_env_management.mdc
-├── config.py
-├── gas_code.js
-├── hello.py
-├── pyproject.toml
-├── README.md
-├── run_gas_function.py
-├── update_gas.py
-├── token.pickle
-└── public/
-    └── pete.png
+PeteDataCleaner/
+├── frontend/                 # GUI application
+│   ├── main_window.py       # Main application window
+│   ├── components/          # Reusable UI components
+│   ├── dialogs/            # Modal dialogs
+│   ├── toolsui/            # Data tools panel
+│   └── data_prep/          # Data preparation editor
+├── backend/                 # Core data processing
+│   └── utils/              # Data utilities
+│       ├── phone_prioritizer.py    # Phone number logic
+│       ├── trailing_dot_cleanup.py # .0 cleanup
+│       ├── data_standardizer.py    # Data standardization
+│       └── preferences.py          # User preferences
+├── tests/                  # Test suite
+│   ├── test_phone_prioritizer.py
+│   ├── test_upload_flow.py
+│   └── test_gui_workflow.py
+├── upload/                 # Sample data files
+├── DEV_MAN/               # Development documentation
+└── pyproject.toml         # Project configuration
 ```
 
 ---
 
-# 🧩 **How the App Works: High-Level Overview**
+## 🧪 Testing
 
-## 1. **Rule Management & Automation (DEV_MAN/rules_fetcher)**
-- **Purpose:** Automate discovery, fetching, standardization, and integration of Cursor rules from the awesome-cursorrules repo.
-- **Key Utilities:**
-  - `fetch_and_save_rules.py`, `readme_parser.py`: Fetch rules by name from GitHub.
-  - `compare_rules.py`: Compare rules for overlap/contradiction.
-  - `standardize_rules.py`, `auto_update_descriptions.py`: Ensure rules have modern headers, descriptions, and globs.
-  - `move_approved_rules.py`: Move approved rules into `.cursor/rules/` for project-wide use.
-- **Reports:** All actions and comparisons are logged in markdown reports in `DEV_MAN/`.
+Run the comprehensive test suite:
 
-## 2. **Planning & Documentation (DEV_MAN/plans)**
-- **Purpose:** Enforce a plan-first, versioned, changelog-driven workflow for all features and utilities.
-- **How:** Every new feature/utility starts with a plan in `plans/current/`, with checkboxes, Mermaid diagrams, changelogs, and rationale.
-- **Status:** Plans are moved to completed when done; all progress/issues are logged.
+```bash
+# Run all tests
+uv run pytest tests/ -v
 
-## 3. **Backend (backend/)**
-- **sheets_client.py:**  
-  - Scaffolds a modular Google Sheets API client.
-  - Supports setting a sheet ID, fetching sheet names, headers, and data.
-  - All actions are logged to `DEV_MAN/backend.log` using `loguru`.
-  - **Current state:** Placeholder logic; real Google Sheets API integration is not yet implemented.
+# Run specific test categories
+uv run pytest tests/test_phone_prioritizer.py -v
+uv run pytest tests/test_upload_flow.py -v
+uv run pytest tests/test_gui_workflow.py -v
 
-## 4. **Frontend (Planned, Not Yet Implemented)**
-- **Goal:** Streamlit-based UI for Google Sheets interaction, data viewing, and analysis.
-- **Status:** Planned in `PENDING_PLANS/adding_streamlitv1.md`, not yet built.
+# Run with coverage
+uv run pytest tests/ --cov=backend --cov=frontend
+```
 
-## 5. **Google Apps Script Integration**
-- **Files:** `gas_code.js`, `update_gas.py`, `run_gas_function.py`
-- **Purpose:** Automate Google Apps Script deployment and function execution for Google Sheets workflows.
-- **Status:** Scripts exist, but are not yet tightly integrated with the new backend/frontend workflow.
-
-## 6. **Other**
-- **addresformater/**: Contains JSON schema and templates, likely for address formatting/validation.
-- **hello.py**: Simple hello world script.
-- **config.py**: Contains Google API scopes.
+**Test Results:** ✅ 16 tests passed, 1 skipped
 
 ---
 
-# ✅ **What the App Can Do**
+## 📊 Data Transformation Examples
 
-- **Automate rule management:** Fetch, standardize, compare, and move Cursor rules for project-wide use.
-- **Enforce planning discipline:** All features/utilities are planned, versioned, and logged before implementation.
-- **Scaffold backend logic:** Modular, loguru-logged backend for Google Sheets access (ready for real API integration).
-- **Generate reports:** Markdown reports for rule comparison, standardization, and moves.
-- **Prepare for Streamlit UI:** All planning and backend scaffolding is in place for a future frontend.
+### Phone Number Cleaning
 
----
+**Input:** `4098880401.0`, `8702853184.0`, `4054104179.0`
+**Output:** `4098880401`, `8702853184`, `4054104179`
 
-# ❌ **What the App Cannot Do (Yet)**
+### Phone Prioritization Logic
 
-- **No real Google Sheets API integration:**  
-  - `backend/sheets_client.py` is scaffolded but does not connect to Google Sheets.
-- **No working Streamlit UI:**  
-  - Frontend is planned but not implemented.
-- **No end-to-end workflow:**  
-  - No UI-to-backend-to-Sheets data flow yet.
-- **No direct data analysis or visualization:**  
-  - Analysis logic is planned but not built.
-- **No user authentication or security:**  
-  - No auth for backend/frontend or Google API.
-- **No CI/CD or deployment automation:**  
-  - Not yet set up for automated deployment or testing.
+**Input:** 30 phone columns with mixed status
+**Output:** 5 best phones selected based on:
+
+- 🥇 **CORRECT** status (verified working numbers)
+- 📱 **MOBILE** type (higher connection success)
+- 📞 **Call history** (prefer fewer attempts)
+- ❌ **Exclude WRONG** numbers (saves time)
+
+### Column Organization
+
+**Input:** Messy column names like `Phone_1`, `phone1`, `PHONE1`
+**Output:** Clean, consistent names like `Phone 1`, `Phone 2`, etc.
 
 ---
 
-# 🔗 **How Everything Connects**
+## 🛠️ Development
 
-- **Rule fetcher utilities** automate the curation and integration of best-practice rules, which are then used by the AI agent and enforced in all planning and coding.
-- **Planning system** ensures every new feature/utility is documented, versioned, and reviewed before any code is written.
-- **Backend client** (once implemented) will power both the Streamlit UI and any analysis/automation scripts.
-- **All logs and reports** are centralized in `DEV_MAN/` for easy review and traceability.
+### Setup Development Environment
 
----
+```bash
+# Clone and setup
+git clone https://github.com/Mark0025/PeteDataCleaner.git
+cd PeteDataCleaner
 
-# 🟡 **Where the App is Lacking / Next Steps**
+# Install development dependencies
+uv sync
 
-- **Backend:** Needs real Google Sheets API integration in `sheets_client.py`.
-- **Frontend:** Needs Streamlit UI implementation and connection to backend.
-- **End-to-end flow:** Needs wiring up of UI, backend, and Google Sheets for real user workflows.
-- **Testing:** Needs automated tests for backend and utilities.
-- **Docs:** README and user/developer documentation are minimal or missing.
-- **Security:** Needs user authentication and API key management for production use.
+# Run tests
+uv run pytest tests/ -v
 
----
+# Run application
+uv run python frontend/main_window.py
+```
 
-# 📝 **Summary Table**
+### Project Structure
 
-| Area                | Status         | Key Files/Dirs                        | Next Steps                                  |
-|---------------------|---------------|---------------------------------------|---------------------------------------------|
-| Rule Management     | Automated     | DEV_MAN/rules_fetcher/, .cursor/rules | Keep rules up to date, expand language map  |
-| Planning            | Enforced      | DEV_MAN/plans/                        | Move completed plans, keep changelogs       |
-| Backend             | Scaffolded    | backend/sheets_client.py              | Implement real Google Sheets API logic      |
-| Frontend            | Planned       | (pending)                             | Build Streamlit UI, connect to backend      |
-| Apps Script         | Exists        | gas_code.js, update_gas.py            | Integrate with backend/UI if needed         |
-| Docs/README         | Minimal       | README.md, DEV_MAN/                   | Expand with usage, setup, and workflow info |
+- **Frontend:** PyQt5-based GUI with modular components
+- **Backend:** Pandas-based data processing with utilities
+- **Testing:** pytest with pytest-qt for GUI testing
+- **Documentation:** Comprehensive DEV_MAN/ structure
 
----
+### Key Technologies
 
-**If you want a more detailed drill-down on any specific part, or want to see a Mermaid diagram of the architecture, just ask!**
-
-
-
-
-
-
-
-Absolutely! Here’s a **deep drill-down** of each file and its purpose in your codebase, organized by directory, with a focus on how each piece fits into the overall app and workflow.
+- **Python 3.12+:** Core language
+- **PyQt5:** GUI framework
+- **Pandas:** Data manipulation
+- **pytest:** Testing framework
+- **uv:** Package management
 
 ---
 
-# peteGoogle/ (Project Root)
+## 📈 Performance
 
-### **config.py**
-- **Purpose:** Defines Google API scopes for authentication and API access.
-- **Role:** Used by scripts that interact with Google APIs (e.g., Sheets, Drive, Apps Script).
+### Test Results
 
-### **gas_code.js**
-- **Purpose:** Google Apps Script code for automating Google Sheets workflows (e.g., sending emails on form submission, triggers).
-- **Role:** Deployed to Google Apps Script; not directly run in Python, but managed by update_gas.py.
+- ✅ **16 tests passed** (1 skipped for large files)
+- ✅ **Phone prioritization:** Processes 310,724 rows in seconds
+- ✅ **GUI responsiveness:** Smooth interface with large datasets
+- ✅ **Memory efficient:** Handles large CSV files without issues
 
-### **update_gas.py**
-- **Purpose:** Updates the Google Apps Script project with new code (pushes `gas_code.js` and manifest).
-- **Role:** Automates deployment of Apps Script logic.
+### Supported File Formats
 
-### **run_gas_function.py**
-- **Purpose:** Runs a function in the deployed Google Apps Script project via the API.
-- **Role:** Used for triggering Apps Script functions from Python.
-
-### **hello.py**
-- **Purpose:** Simple hello world script.
-- **Role:** Placeholder/test script; not part of main workflow.
-
-### **pyproject.toml**
-- **Purpose:** Python project configuration and dependencies.
-- **Role:** Used by package managers (e.g., uv, pip) to install dependencies.
-
-### **README.md**
-- **Purpose:** Project documentation (currently empty).
-- **Role:** Should explain setup, usage, and architecture for users/developers.
-
-### **token.pickle**
-- **Purpose:** Stores Google API credentials after OAuth flow.
-- **Role:** Used by scripts that access Google APIs to avoid repeated authentication.
+- **CSV:** Primary format with automatic encoding detection
+- **Excel:** .xlsx and .xls files
+- **Large Files:** Handles files up to 200MB+ efficiently
 
 ---
 
-# addresformater/
+## 🤝 Contributing
 
-### **BarMinimumschema.json**
-- **Purpose:** JSON schema for address formatting/validation.
-- **Role:** Used for validating or transforming address data (not yet integrated with main workflow).
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feat/amazing-feature`
+3. **Commit** your changes: `git commit -m 'feat: add amazing feature'`
+4. **Push** to the branch: `git push origin feat/amazing-feature`
+5. **Open** a Pull Request
 
-### **propertiesTemplate/**
-- **Purpose:** (Empty or template directory for address-related schemas/templates.)
-- **Role:** Placeholder for future address formatting logic.
+### Development Guidelines
 
----
-
-# public/
-
-### **pete.png**
-- **Purpose:** Image asset.
-- **Role:** Likely used for branding in UI or documentation.
+- Follow the existing code style
+- Add tests for new features
+- Update documentation in DEV_MAN/
+- Use conventional commit messages
 
 ---
 
-# backend/
+## 📄 License
 
-### **sheets_client.py**
-- **Purpose:** Modular backend client for Google Sheets API access.
-- **Role:** Will power all backend data access for the app (fetching sheet names, headers, data).  
-- **Features:**  
-  - Set sheet ID (for working with multiple sheets)
-  - Fetch sheet names, headers, and data (currently placeholder logic)
-  - All actions logged to `DEV_MAN/backend.log` using loguru
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-# DEV_MAN/ (Developer Management, Utilities, and Logs)
+## 🆘 Support
 
-### **hello.py**
-- **Purpose:** Simple hello world for DEV_MAN.
-- **Role:** Placeholder/test script.
+### Common Issues
 
-### **rules_comparison_report.md**
-- **Purpose:** Markdown report of rule overlaps, contradictions, and unique points.
-- **Role:** Helps you audit and refine your rule set.
+1. **"No module named 'backend'"** → Run `uv sync` to install dependencies
+2. **GUI not starting** → Ensure PyQt5 is installed: `uv add PyQt5`
+3. **Large file errors** → Files >200MB are skipped automatically
 
-### **standardization_report.md**
-- **Purpose:** Report of which rules were standardized (header, globs, etc.).
-- **Role:** Ensures all rules follow Cursor conventions.
+### Getting Help
 
-### **description_update_report.md**
-- **Purpose:** Report of which rules had their description fields updated.
-- **Role:** Ensures all rules are discoverable and well-documented.
-
-### **move_rules_report.md**
-- **Purpose:** Report of which rules were moved to `.cursor/rules/`.
-- **Role:** Auditable log of rule integration.
+- 📖 **Documentation:** Check DEV_MAN/ for detailed guides
+- 🐛 **Issues:** Report bugs on GitHub
+- 💬 **Questions:** Open a GitHub discussion
 
 ---
 
-## DEV_MAN/plans/
+## 🎉 Acknowledgments
 
-### **Task.md**
-- **Purpose:** Master task plan for all features and utilities.
-- **Role:** Roadmap and index for all planning.
-
-#### **current/logging_and_backend_client.md**
-- **Purpose:** Plan for setting up logging and the backend Sheets client.
-- **Role:** Documents steps, status, changelog, and rationale for this feature.
-
-#### **current/rules_fetcher_utility.md**
-- **Purpose:** Plan for the rules fetcher utility.
-- **Role:** Documents steps, status, changelog, and rationale for rule automation.
+- **Pete Team:** For the data requirements and feedback
+- **PyQt5 Community:** For the excellent GUI framework
+- **Pandas Team:** For powerful data manipulation tools
 
 ---
 
-## DEV_MAN/rules_fetcher/ (Rule Automation Utilities)
+**Made with ❤️ for Pete Data Cleaner**
 
-### **auto_update_descriptions.py**
-- **Purpose:** Updates the `description:` and `globs:` fields in all `.cursorrules` files.
-- **Role:** Ensures all rules are discoverable and auto-attached to the right files.
-
-### **compare_rules.py**
-- **Purpose:** Compares all `.cursorrules` files for overlap, contradictions, and unique points.
-- **Role:** Helps you maintain a clean, non-redundant rule set.
-
-### **fetch_and_save_rules.py**
-- **Purpose:** Fetches specific rules by name from the awesome-cursorrules repo and saves them locally.
-- **Role:** Automates rule discovery and adoption.
-
-### **fetch_rule.py / fetch_rule_gh.py**
-- **Purpose:** Early versions of rule fetchers (by name or via GitHub CLI).
-- **Role:** Superseded by `fetch_and_save_rules.py` but kept for reference.
-
-### **move_approved_rules.py**
-- **Purpose:** Moves approved `.cursorrules` files to `.cursor/rules/` (with preview and overwrite prompts).
-- **Role:** Final step in rule adoption, ensuring only vetted rules are used.
-
-### **readme_parser.py**
-- **Purpose:** Parses the awesome-cursorrules README to extract rule names and links.
-- **Role:** Supports rule fetching and automation.
-
-### **standardize_rules.py**
-- **Purpose:** Ensures all `.cursorrules` files have modern headers and conventions.
-- **Role:** Keeps your rule set Cursor-compliant.
-
-#### **rules/**
-- **Purpose:** Staging area for fetched and standardized rules before approval.
-- **Role:** Temporary holding area before rules are moved to `.cursor/rules/`.
-
----
-
-## DEV_MAN/PENDING_PLANS/
-
-### **adding_streamlitv1.md**
-- **Purpose:** Plan for the Streamlit UI feature.
-- **Role:** Documents steps, status, and rationale for the frontend.
-
----
-
-# .cursor/rules/ (Active Cursor Rules for the Project)
-
-### **ai_agent_planning.mdc**
-- **Purpose:** Enforces planning-first, changelog-driven workflow for all features/utilities.
-- **Role:** Ensures all work is planned, versioned, and reviewed before implementation.
-
-### **cursorrules.mdc**
-- **Purpose:** Main Cursor rules file (could be a template or meta-rule).
-- **Role:** Sets project-wide standards for rule format and usage.
-
-### **github.mdc**
-- **Purpose:** Git best practices, automation, and logging rules.
-- **Role:** Ensures all git operations are logged and follow best practices.
-
-### **uv_env_management.mdc**
-- **Purpose:** Rules for managing Python environments with uv.
-- **Role:** Prevents environment confusion and ensures reproducibility.
-
----
-
-# **How Everything Connects**
-
-- **Rule fetcher utilities** automate the curation, standardization, and integration of best-practice rules, which are then enforced by the AI agent and Cursor.
-- **Planning system** ensures every new feature/utility is documented, versioned, and reviewed before any code is written.
-- **Backend client** (once fully implemented) will power both the Streamlit UI and any analysis/automation scripts.
-- **All logs and reports** are centralized in `DEV_MAN/` for easy review and traceability.
-- **Google Apps Script** files are available for advanced Google Sheets automation, but are not yet tightly integrated with the new backend/frontend workflow.
-
----
-
-# **Where the App is Lacking / Next Steps**
-
-- **Backend:** Needs real Google Sheets API integration in `sheets_client.py`.
-- **Frontend:** Needs Streamlit UI implementation and connection to backend.
-- **End-to-end flow:** Needs wiring up of UI, backend, and Google Sheets for real user workflows.
-- **Testing:** Needs automated tests for backend and utilities.
-- **Docs:** README and user/developer documentation are minimal or missing.
-- **Security:** Needs user authentication and API key management for production use.
-
----
-
-If you want a **file-by-file summary** with even more detail (e.g., function/class breakdowns), or want to focus on a specific area (backend, rules, planning, etc.), just let me know!
+_Transform your messy data into Pete-ready perfection!_

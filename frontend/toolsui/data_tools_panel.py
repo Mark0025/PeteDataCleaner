@@ -365,6 +365,13 @@ class DataToolsPanel(BaseComponent):
                     new_df = temp_df.drop(columns=temp_cols_to_drop)
                 else:
                     new_df = current_df.drop_duplicates(keep=config['keep'])
+            elif config['method'] == 'address_based_grouping':
+                # Address-based grouping (basic version)
+                new_df = current_df.drop_duplicates(subset=['Property address'], keep=config['keep'])
+            elif config['method'] == 'smart_seller_creation':
+                # Smart seller creation with phone prioritization
+                from backend.utils.smart_seller_creator import create_seller_groups
+                new_df = create_seller_groups(current_df)
             else:
                 new_df = current_df.drop_duplicates(keep=config['keep'])
             
@@ -375,17 +382,25 @@ class DataToolsPanel(BaseComponent):
                 return
             
             # Save version
-            if config['method'] == 'selected_columns' and config.get('columns'):
+            if config['method'] == 'smart_seller_creation':
+                action = f"Smart Seller Creation"
+                details = f"Created Seller 1-5 structure with phone prioritization ({len(new_df)} records)"
+                self.status_label.setText(f'✅ Smart Seller Creation complete ({len(new_df)} Pete-ready records)')
+            elif config['method'] == 'address_based_grouping':
+                action = f"Address-based grouping"
+                details = f"Grouped by Property Address, removed {removed_count} duplicates"
+                self.status_label.setText(f'✅ Address-based grouping complete ({len(new_df)} records)')
+            elif config['method'] == 'selected_columns' and config.get('columns'):
                 action = f"Removed {removed_count} duplicates"
                 details = f"Based on columns: {', '.join(config['columns'])} (keep={config['keep']})"
+                self.status_label.setText(f'✅ Removed {removed_count} duplicate rows ({len(new_df)} rows remaining)')
             else:
                 action = f"Removed {removed_count} duplicates"
                 details = f"Method: {config['method']} (keep={config['keep']})"
+                self.status_label.setText(f'✅ Removed {removed_count} duplicate rows ({len(new_df)} rows remaining)')
             
             self.data_prep_editor.version_manager.save_version(new_df, action, details)
             self.data_prep_editor._refresh_data_view()
-            
-            self.status_label.setText(f'✅ Removed {removed_count} duplicate rows ({len(new_df)} rows remaining)')
             
         except Exception as e:
             self.status_label.setText(f'❌ Error removing duplicates: {str(e)}')

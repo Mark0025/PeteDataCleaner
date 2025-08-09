@@ -153,6 +153,9 @@ class DataPipelineAnalyzer:
             prioritized_df, meta = prioritize(df)
             metrics['phone_prioritization_results'] = meta
             
+            # Store the processed DataFrame for export
+            self.processed_df = prioritized_df.copy()
+            
             # Analyze status distribution
             status_counts = get_status_distribution(df)
             metrics['status_distribution'] = status_counts
@@ -475,6 +478,29 @@ class DataPipelineAnalyzer:
         logger.info(f"Comprehensive report saved: {filename}")
         return filename
     
+    def export_processed_data(self) -> str:
+        """Export the processed data to Excel format."""
+        try:
+            # Get the processed DataFrame (after phone prioritization)
+            if not hasattr(self, 'processed_df') or self.processed_df is None:
+                logger.warning("No processed data available for export")
+                return ""
+            
+            # Create filename with timestamp
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"DEV_MAN/whatsworking/processed_data_{timestamp}.xlsx"
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            
+            # Export to Excel
+            self.processed_df.to_excel(filename, index=False, engine='openpyxl')
+            
+            logger.info(f"Processed data exported to Excel: {filename}")
+            return filename
+            
+        except Exception as e:
+            logger.error(f"Failed to export processed data: {e}")
+            return ""
+    
     def run_full_analysis(self) -> Dict[str, Any]:
         """Run the complete analysis pipeline"""
         logger.info("Starting full data pipeline analysis")
@@ -495,6 +521,9 @@ class DataPipelineAnalyzer:
             # Generate comprehensive report
             report_filename = self.generate_comprehensive_report()
             
+            # Export processed data to Excel
+            excel_filename = self.export_processed_data()
+            
             # Compile results
             results = {
                 'dataset_file': str(largest_file),
@@ -502,6 +531,7 @@ class DataPipelineAnalyzer:
                 'after_metrics': self.after_metrics,
                 'visualization_file': viz_filename,
                 'report_file': report_filename,
+                'excel_export_file': excel_filename,
                 'analysis_timestamp': datetime.now().isoformat()
             }
             
