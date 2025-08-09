@@ -307,7 +307,7 @@ class CodebaseAnalyzer:
             'Utility': {
                 'imports': {'os', 're', 'json', 'logging', 'datetime', 'pathlib'},
                 'functions': {'helper', 'util', 'format', 'parse'},
-                'classes': {}
+                'classes': []
             }
         }
 
@@ -453,7 +453,7 @@ class CodebaseAnalyzer:
                         
             # Score based on class names
             for cls in classes:
-                for pattern in patterns['classes']:
+                for pattern in patterns.get('classes', []):
                     if pattern in cls:
                         scores[role] += 2
                         
@@ -1249,10 +1249,12 @@ def main():
         analyzer = CodebaseAnalyzer()
         analyzer.analyze_codebase()
         
-        # Generate all reports
+        # Generate basic reports (skip heavy pipeline analysis)
         report = analyzer.generate_report()
         end_user_report = analyzer.generate_end_user_flow_report()
-        pipeline_report = analyzer.generate_pipeline_analysis_report()
+        
+        # Skip pipeline analysis to avoid heavy processing
+        # pipeline_report = analyzer.generate_pipeline_analysis_report()
         
         # Save main report
         filename = analyzer.save_report(report)
@@ -1260,13 +1262,13 @@ def main():
         # Save end-user report
         end_user_filename = analyzer.save_end_user_report(end_user_report)
         
-        # Save pipeline analysis report
-        pipeline_filename = analyzer.save_pipeline_report(pipeline_report)
+        # Skip pipeline report saving
+        # pipeline_filename = analyzer.save_pipeline_report(pipeline_report)
         
         print(f"\n📋 Analysis complete! Reports saved to:")
         print(f"   📊 Technical Report: {filename}")
         print(f"   🎯 End-User Guide: {end_user_filename}")
-        print(f"   🔍 Pipeline Analysis: {pipeline_filename}")
+        print(f"   ⏭️  Pipeline Analysis: Skipped (heavy processing)")
         print(f"🎯 Found {len(analyzer.analyses)} Python files across the codebase")
         
         # Quick summary
