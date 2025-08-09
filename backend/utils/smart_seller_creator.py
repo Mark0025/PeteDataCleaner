@@ -9,7 +9,8 @@ from typing import Dict, List, Tuple, Optional
 import pandas as pd
 from loguru import logger
 
-from backend.utils.phone_prioritizer import prioritize
+from backend.utils.high_performance_processor import prioritize_phones_fast
+from backend.utils.progress_tracker import track_smart_seller_creation
 
 
 class SmartSellerCreator:
@@ -37,18 +38,22 @@ class SmartSellerCreator:
     def create_seller_groups(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Create seller groups from address duplicates.
-        
+
         Args:
             df: Input DataFrame with property data
-            
+
         Returns:
             DataFrame with Seller 1-5 structure
         """
         if df is None or df.empty:
             logger.warning("Empty DataFrame provided to SmartSellerCreator")
             return df
-        
+
         self.stats['total_records'] = len(df)
+        
+        # Initialize progress tracker
+        progress = track_smart_seller_creation(len(df))
+        
         logger.info(f"🔄 Starting smart seller creation for {len(df):,} records")
         
         # Step 1: Group by Property Address
@@ -215,8 +220,8 @@ class SmartSellerCreator:
         phone_df = pd.DataFrame([seller_data])
         
         try:
-            # Apply phone prioritization
-            prioritized_df, _ = prioritize(phone_df, max_phones=5)
+            # Apply fast phone prioritization
+            prioritized_df, _ = prioritize_phones_fast(phone_df, max_phones=5)
             
             # Extract Phone 1-5
             result = {}

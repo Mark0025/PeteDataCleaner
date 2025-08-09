@@ -135,14 +135,67 @@ class HighPerformanceProcessor:
             logger.info("Falling back to existing cleanup...")
             from backend.utils import trailing_dot_cleanup as tdc
             return tdc.clean_dataframe(df)
-    
-    def prioritize_phones_fast(self, df: pd.DataFrame, max_phones: int = 5) -> Tuple[pd.DataFrame, List[Dict]]:
+
+    def filter_empty_columns(self, df: pd.DataFrame, threshold: float = 0.9) -> pd.DataFrame:
         """
-        Fast phone prioritization using Polars.
+        Remove columns that are mostly NaN or empty using Polars speed.
+        
+        Args:
+            df: pandas DataFrame
+            threshold: Percentage of NaN/empty values to consider for removal (default: 0.9)
+            
+        Returns:
+            pandas.DataFrame: DataFrame with empty columns removed
+        """
+        step_start = time.time()
+        
+        print(f"👁️ Filtering empty columns (threshold: {threshold*100}%)...")
+        print(f"⏰ Started at: {datetime.now().strftime('%H:%M:%S')}")
+        
+        try:
+            # Convert to Polars for speed
+            pl_df = pl.from_pandas(df)
+            
+            # Calculate percentage of null values for each column
+            null_percentages = pl_df.null_count() / len(pl_df)
+            
+            # Columns to keep (those below the threshold)
+            columns_to_keep = [col for col, null_pct in zip(pl_df.columns, null_percentages) if null_pct < threshold]
+            
+            # Filter DataFrame
+            filtered_pl_df = pl_df.select(columns_to_keep)
+            
+            # Convert back to pandas
+            filtered_df = filtered_pl_df.to_pandas()
+            
+            filter_time = time.time() - step_start
+            self.processing_stats['filter_time'] = filter_time
+            self.step_times['filter'] = filter_time
+            
+            removed_columns = len(df.columns) - len(filtered_df.columns)
+            print(f"✅ Removed {removed_columns} empty columns")
+            print(f"⏱️  Filter time: {filter_time:.2f}s")
+            print(f"📊 Estimated total time: {self._estimate_total_time():.1f}s")
+            
+            logger.info(f"🚀 High-performance empty column filtering: {removed_columns} columns removed in {filter_time:.2f}s")
+            
+            return filtered_df
+            
+        except Exception as e:
+            logger.error(f"Failed to filter with high-performance processor: {e}")
+            # Fallback to existing method
+            logger.info("Falling back to existing filter...")
+            from backend.utils.data_type_converter import DataTypeConverter
+            return DataTypeConverter.filter_empty_columns(df, threshold)
+    
+    def prioritize_phones_fast(self, df: pd.DataFrame, max_phones: int = 5, prioritization_rules: Optional[Dict] = None) -> Tuple[pd.DataFrame, List[Dict]]:
+        """
+        Fast phone prioritization using Polars with customizable rules.
         
         Args:
             df: pandas DataFrame with phone columns
             max_phones: Maximum number of phones to keep
+            prioritization_rules: Optional custom prioritization rules
             
         Returns:
             Tuple[pd.DataFrame, List[Dict]]: Prioritized data and metadata
@@ -160,6 +213,7 @@ class HighPerformanceProcessor:
             phone_cols = [col for col in pl_df.columns if col.startswith('Phone ') and col.count(' ') == 1]
             status_cols = [col for col in pl_df.columns if col.startswith('Phone Status ') and col.count(' ') == 2]
             type_cols = [col for col in pl_df.columns if col.startswith('Phone Type ') and col.count(' ') == 2]
+            tag_cols = [col for col in pl_df.columns if col.startswith('Phone Tag ') and col.count(' ') == 2]
             
             print(f"📱 Found {len(phone_cols)} phone columns, {len(status_cols)} status columns")
             
@@ -167,35 +221,60 @@ class HighPerformanceProcessor:
                 logger.warning("No phone columns found for prioritization")
                 return df, []
             
-            # Create phone metadata for prioritization
+            # Use default rules if none provided
+            if prioritization_rules is None:
+                prioritization_rules = {
+                    'status_weights': {
+                        'CORRECT': 100, 'UNKNOWN': 80, 'NO_ANSWER': 60, 
+                        'WRONG': 40, 'DEAD': 20, 'DNC': 10
+                    },
+                    'type_weights': {
+                        'MOBILE': 100, 'LANDLINE': 80, 'UNKNOWN': 60
+                    },
+                    'tag_weights': {
+                        'call_a01': 100, 'call_a02': 90, 'call_a03': 80,
+                        'call_a04': 70, 'call_a05': 60, 'no_tag': 50
+                    },
+                    'call_count_multiplier': 1.0
+                }
+            
+            # Create phone metadata with priority scores
             phone_meta = []
             for i, phone_col in enumerate(phone_cols[:30]):  # Max 30 phones
                 status_col = f'Phone Status {i+1}' if f'Phone Status {i+1}' in status_cols else None
                 type_col = f'Phone Type {i+1}' if f'Phone Type {i+1}' in type_cols else None
+                tag_col = f'Phone Tag {i+1}' if f'Phone Tag {i+1}' in tag_cols else None
+                
+                # Calculate priority score using Polars
+                priority_score = self._calculate_phone_priority_fast(
+                    pl_df, phone_col, status_col, type_col, tag_col, prioritization_rules
+                )
                 
                 phone_meta.append({
                     'column': phone_col,
                     'status_column': status_col,
                     'type_column': type_col,
-                    'priority_score': 0
+                    'tag_column': tag_col,
+                    'priority_score': priority_score
                 })
+            
+            # Sort by priority score (highest first)
+            phone_meta.sort(key=lambda x: x['priority_score'], reverse=True)
             
             print(f"🎯 Prioritizing top {max_phones} phones from {len(phone_meta)} candidates...")
             
-            # Calculate priority scores using Polars
+            # Create prioritized DataFrame using Polars
             prioritized_pl_df = pl_df.clone()
             
-            # Reorder phone columns based on priority
-            # This is a simplified version - you can enhance the logic
+            # Keep only the top N phones, reorder them as Phone 1, Phone 2, etc.
             for i, meta in enumerate(phone_meta[:max_phones]):
-                if meta['status_column'] and meta['status_column'] in pl_df.columns:
-                    # Prioritize CORRECT numbers
-                    prioritized_pl_df = prioritized_pl_df.with_columns([
-                        pl.when(pl.col(meta['status_column']) == 'CORRECT')
-                        .then(pl.col(meta['column']))
-                        .otherwise(pl.col(meta['column']))
-                        .alias(f'Phone {i+1}')
-                    ])
+                prioritized_pl_df = prioritized_pl_df.with_columns([
+                    pl.col(meta['column']).alias(f'Phone {i+1}')
+                ])
+            
+            # Remove original phone columns that aren't in top N
+            columns_to_keep = [col for col in pl_df.columns if not col.startswith('Phone ') or col in [f'Phone {i+1}' for i in range(max_phones)]]
+            prioritized_pl_df = prioritized_pl_df.select(columns_to_keep)
             
             # Convert back to pandas
             prioritized_df = prioritized_pl_df.to_pandas()
@@ -218,6 +297,44 @@ class HighPerformanceProcessor:
             logger.info("Falling back to existing phone prioritization...")
             from backend.utils.phone_prioritizer import prioritize
             return prioritize(df, max_phones)
+    
+    def _calculate_phone_priority_fast(self, pl_df, phone_col: str, status_col: str, type_col: str, tag_col: str, rules: Dict) -> float:
+        """Calculate priority score for a phone using Polars."""
+        try:
+            # Get status weight
+            status_weight = 0
+            if status_col and status_col in pl_df.columns:
+                status_values = pl_df.select(status_col).to_series().drop_nulls()
+                if len(status_values) > 0:
+                    status = status_values[0]
+                    status_weight = rules['status_weights'].get(status, 0)
+            
+            # Get type weight
+            type_weight = 0
+            if type_col and type_col in pl_df.columns:
+                type_values = pl_df.select(type_col).to_series().drop_nulls()
+                if len(type_values) > 0:
+                    phone_type = type_values[0]
+                    type_weight = rules['type_weights'].get(phone_type, 0)
+            
+            # Get tag weight
+            tag_weight = 0
+            if tag_col and tag_col in pl_df.columns:
+                tag_values = pl_df.select(tag_col).to_series().drop_nulls()
+                if len(tag_values) > 0:
+                    tag = tag_values[0]
+                    tag_weight = rules['tag_weights'].get(tag, rules['tag_weights']['no_tag'])
+            else:
+                tag_weight = rules['tag_weights']['no_tag']
+            
+            # Calculate total score
+            total_score = status_weight + type_weight + tag_weight
+            
+            return total_score
+            
+        except Exception as e:
+            logger.warning(f"Error calculating priority for {phone_col}: {e}")
+            return 0.0
     
     def _estimate_total_time(self) -> float:
         """Estimate total processing time based on completed steps."""
@@ -410,7 +527,13 @@ def clean_dataframe_fast(df: pd.DataFrame) -> pd.DataFrame:
     return processor.clean_trailing_dot_zero(df)
 
 
-def prioritize_phones_fast(df: pd.DataFrame, max_phones: int = 5) -> Tuple[pd.DataFrame, List[Dict]]:
+def filter_empty_columns_fast(df: pd.DataFrame, threshold: float = 0.9) -> pd.DataFrame:
+    """Fast empty column filtering with Polars."""
+    processor = HighPerformanceProcessor()
+    return processor.filter_empty_columns(df, threshold)
+
+
+def prioritize_phones_fast(df: pd.DataFrame, max_phones: int = 5, prioritization_rules: Optional[Dict] = None) -> Tuple[pd.DataFrame, List[Dict]]:
     """Fast phone prioritization with Polars."""
     processor = HighPerformanceProcessor()
     return processor.prioritize_phones_fast(df, max_phones)

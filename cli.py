@@ -20,6 +20,7 @@ def cli(ctx):
         options = [
             ("Workspace", "Manage Google Sheets workspace (list, search, add, select, browse)"),
             ("Standardize", "Standardize uploaded data files to Pete template"),
+            ("Owner Analysis", "Analyze property ownership patterns and business entities"),
             ("Rules", "Rule management utilities (coming soon)"),
             ("Backend", "Backend/analysis utilities (coming soon)"),
             ("Test", "Run all tests and show what's working"),
@@ -46,13 +47,15 @@ def cli(ctx):
         elif choice == 2:
             ctx.invoke(standardize)
         elif choice == 3:
-            console.print("[yellow]Rules utility coming soon.[/yellow]")
+            ctx.invoke(owner_analysis)
         elif choice == 4:
-            console.print("[yellow]Backend utility coming soon.[/yellow]")
+            console.print("[yellow]Rules utility coming soon.[/yellow]")
         elif choice == 5:
+            console.print("[yellow]Backend utility coming soon.[/yellow]")
+        elif choice == 6:
             console.print("[bold green]Running all tests and generating report...[/bold green]")
             subprocess.run(["bash", "run_all_tests.sh"])
-        elif choice == 6:
+        elif choice == 7:
             # Launch GUI Mapping Tool
             console.print("[bold cyan]Launching GUI Mapping Tool...[/bold cyan]")
             try:
@@ -61,7 +64,7 @@ def cli(ctx):
                 console.print("[green]GUI Mapping Tool closed. Returning to main menu.[/green]")
             except subprocess.CalledProcessError as e:
                 console.print(f"[red]Error launching GUI Mapping Tool: {e}[/red]")
-        elif choice == 7:
+        elif choice == 8:
             console.print("[bold red]Exiting Pete CLI...[/bold red]")
             sys.exit(0)
         else:
@@ -79,6 +82,64 @@ def standardize():
     """Standardize uploaded data files."""
     # Existing standardize command implementation
     pass
+
+@cli.command()
+def owner_analysis():
+    """Analyze property ownership patterns and business entities."""
+    console.print("[bold cyan]🏠 PROPERTY OWNERSHIP ANALYSIS[/bold cyan]")
+    console.print("=" * 50)
+    
+    try:
+        # Import the owner analyzer
+        from backend.utils.owner_analyzer import OwnerAnalyzer
+        import pandas as pd
+        
+        # Find the largest CSV file in upload directory
+        upload_dir = "upload"
+        csv_files = [f for f in os.listdir(upload_dir) if f.endswith('.csv')]
+        
+        if not csv_files:
+            console.print("[red]No CSV files found in upload directory.[/red]")
+            return
+        
+        # Use the largest file
+        largest_file = max(csv_files, key=lambda f: os.path.getsize(os.path.join(upload_dir, f)))
+        file_path = os.path.join(upload_dir, largest_file)
+        
+        console.print(f"[green]Loading data from: {largest_file}[/green]")
+        
+        # Load data using fast processor
+        from backend.utils.high_performance_processor import load_csv_fast
+        df = load_csv_fast(file_path)
+        console.print(f"[green]Loaded {len(df):,} records[/green]")
+        
+        # Analyze ownership
+        analyzer = OwnerAnalyzer()
+        results = analyzer.analyze_ownership(df)
+        
+        # Generate and display report
+        report = analyzer.generate_report(results)
+        console.print("\n[bold yellow]OWNERSHIP ANALYSIS REPORT:[/bold yellow]")
+        console.print(report)
+        
+        # Export results
+        export_file = "DEV_MAN/owner_analysis_export.json"
+        analyzer.export_owner_data(results, export_file)
+        console.print(f"[green]📁 Analysis exported to: {export_file}[/green]")
+        
+        # Show key insights
+        console.print("\n[bold cyan]KEY INSIGHTS:[/bold cyan]")
+        console.print(f"• {results['total_owners']:,} unique owners")
+        console.print(f"• {results['business_entities']['business_count']:,} business entities")
+        console.print(f"• {results['ownership_patterns']['owners_with_multiple_properties']:,} multi-property owners")
+        
+        if results['property_value_analysis'].get('total_property_value'):
+            total_value = results['property_value_analysis']['total_property_value']
+            console.print(f"• Total property value: ${total_value:,.0f}")
+        
+    except Exception as e:
+        console.print(f"[red]Error during ownership analysis: {e}[/red]")
+        console.print("[yellow]Make sure you have CSV files in the upload directory.[/yellow]")
 
 if __name__ == '__main__':
     cli() 

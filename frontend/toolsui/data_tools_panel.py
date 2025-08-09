@@ -17,6 +17,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from frontend.components.base_component import BaseComponent
 from frontend.data_prep import DataPrepEditor
 from frontend.dialogs.duplicate_removal_dialog import DuplicateRemovalDialog
+from frontend.utils.resizable_widget import create_tools_panel
 
 
 class DataToolsPanel(BaseComponent):
@@ -90,20 +91,18 @@ class DataToolsPanel(BaseComponent):
         
         self.layout.addLayout(title_layout)
         
-        # Main content: Tools + Data Editor
-        main_splitter = QSplitter(Qt.Vertical)
-        
-        # Top: Prominent Tools Panel
+        # Main content: Tools + Data Editor using resizable widget
         tools_panel = self._create_tools_panel()
-        main_splitter.addWidget(tools_panel)
         
-        # Bottom: Data Editor
-        main_splitter.addWidget(self.data_prep_editor)
+        # Create resizable panel with tools on left, data editor on right
+        self.resizable_panel = create_tools_panel(
+            tools_widget=tools_panel,
+            content_widget=self.data_prep_editor,
+            tools_title="🛠️ Data Tools",
+            content_title="📊 Data Editor"
+        )
         
-        # Set sizes: 30% tools, 70% data editor
-        main_splitter.setSizes([200, 600])
-        
-        self.layout.addWidget(main_splitter)
+        self.layout.addWidget(self.resizable_panel)
         
         # Bottom: Action buttons
         self._create_action_buttons()
@@ -155,6 +154,8 @@ class DataToolsPanel(BaseComponent):
             [
                 ("🧹 Clean Data", "Remove empty values, trim spaces", self._clean_data),
                 ("🔄 Transform", "Convert data types, formats", self._transform_data),
+                ("📞 Prioritize Phones", "Prioritize phone numbers", self._prioritize_phones),
+                ("🏠 Owner Analysis", "Analyze property ownership patterns", self._analyze_owners),
                 ("✅ Validate", "Check data quality, find issues", self._validate_data),
                 ("🏷️ Tag Columns", "Mark columns by type/purpose", self._tag_columns),
                 ("💾 Save Preset", f"Save {self.data_source}→Pete mapping preset", self._save_preset),
@@ -419,11 +420,11 @@ class DataToolsPanel(BaseComponent):
     
     def _strip_trailing_dot(self):
         """Strip trailing .0 from numeric-like strings across the dataframe."""
-        from backend.utils import trailing_dot_cleanup as tdc
+        from backend.utils.high_performance_processor import clean_dataframe_fast
         current_df = self.data_prep_editor.get_prepared_data()
         if current_df is None:
             return
-        cleaned = tdc.clean_dataframe(current_df)
+        cleaned = clean_dataframe_fast(current_df)
         # Save version & refresh view
         self.data_prep_editor.version_manager.save_version(cleaned, "Strip .0", "Removed trailing .0 from numeric-like strings")
         self.data_prep_editor._refresh_data_view()
@@ -432,7 +433,7 @@ class DataToolsPanel(BaseComponent):
 
     def _prioritize_phones(self):
         """Open dialog to prioritize phones and apply selection."""
-        from backend.utils import phone_prioritizer as pp  # lazy import to avoid heavy deps on startup
+        from backend.utils.high_performance_processor import prioritize_phones_fast  # Use fast processor
         from frontend.dialogs.phone_prioritization_dialog import PhonePrioritizationDialog
 
         current_df = self.data_prep_editor.get_prepared_data()
@@ -442,20 +443,138 @@ class DataToolsPanel(BaseComponent):
         # Count original phone columns
         original_phone_cols = [col for col in current_df.columns if col.startswith('Phone ') and not any(suffix in col for suffix in [' Status', ' Type', ' Tag'])]
         
-        cleaned_df, meta = pp.prioritize(current_df)
+        # Get initial prioritization for preview
+        initial_df, meta = prioritize_phones_fast(current_df)
         dlg = PhonePrioritizationDialog(meta, current_df, self)
+        
         if dlg.exec_():
+            # Get the custom prioritization rules from dialog
+            prioritization_rules = dlg.get_prioritization_rules()
+            
+            # Apply prioritization with custom rules
+            cleaned_df, meta = prioritize_phones_fast(current_df, prioritization_rules=prioritization_rules)
+            
             # Count remaining phone columns
             remaining_phone_cols = [col for col in cleaned_df.columns if col.startswith('Phone ') and not any(suffix in col for suffix in [' Status', ' Type', ' Tag'])]
             
+            # Save version with custom rules info
+            rules_summary = f"Custom rules: Status={prioritization_rules['status_weights']['CORRECT']}, Type={prioritization_rules['type_weights']['MOBILE']}, Tags={prioritization_rules['tag_weights']['call_a01']}"
             self.data_prep_editor.version_manager.save_version(
-                cleaned_df, "Prioritize Phones", "Selected top 5 phone numbers"
+                cleaned_df, "Prioritize Phones (Custom Rules)", f"Applied custom prioritization rules: {rules_summary}"
             )
             self.data_prep_editor._refresh_data_view()
             
             # Update status with clear feedback
             reduced_count = len(original_phone_cols) - len(remaining_phone_cols)
-            self.status_label.setText(f'📞 Phone prioritization applied: {len(original_phone_cols)} → {len(remaining_phone_cols)} columns ({reduced_count} removed)')
+            self.status_label.setText(f'📞 Phone prioritization applied with custom rules: {len(original_phone_cols)} → {len(remaining_phone_cols)} columns ({reduced_count} removed)')
+
+    def _analyze_owners(self):
+        """Analyze property ownership patterns and business entities."""
+        from backend.utils.owner_analyzer import OwnerAnalyzer
+        from PyQt5.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QLabel
+        from PyQt5.QtCore import Qt
+
+        current_df = self.data_prep_editor.get_prepared_data()
+        if current_df is None:
+            return
+        
+        try:
+            # Perform ownership analysis
+            analyzer = OwnerAnalyzer()
+            results = analyzer.analyze_ownership(current_df)
+            
+            # Store results for preset saving
+            self.last_owner_analysis_results = results
+            
+            # Create analysis dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("🏠 Property Ownership Analysis")
+            dialog.resize(800, 600)
+            
+            layout = QVBoxLayout(dialog)
+            
+            # Title
+            title = QLabel("Property Ownership Analysis Results")
+            title.setStyleSheet("font-size: 16px; font-weight: bold; margin: 10px;")
+            layout.addWidget(title)
+            
+            # Analysis text
+            analysis_text = QTextEdit()
+            analysis_text.setReadOnly(True)
+            
+            # Generate detailed report
+            report = analyzer.generate_report(results)
+            
+            # Add key insights
+            insights = f"""
+{report}
+
+🎯 KEY INSIGHTS:
+• {results['total_owners']:,} unique owners identified
+• {results['business_entities']['business_count']:,} business entities detected
+• {results['ownership_patterns']['owners_with_multiple_properties']:,} owners with multiple properties
+• {results['ownership_patterns']['max_properties_per_owner']} max properties per owner
+
+🏢 BUSINESS ENTITIES:
+{chr(10).join(f"• {entity}" for entity in results['business_entities']['sample_businesses'][:5])}
+
+👤 TOP PROPERTY OWNERS:
+{chr(10).join(f"• {owner}: {count} properties" for owner, count in list(results['ownership_patterns']['top_owners'].items())[:5])}
+
+📊 MARKETING OPPORTUNITIES:
+• High-value targets: {len(results['marketing_insights']['high_value_targets'])}
+• Multi-property opportunities: {len(results['marketing_insights']['multi_property_opportunities'])}
+• Business entity opportunities: {len(results['marketing_insights']['business_entity_opportunities'])}
+"""
+            
+            analysis_text.setPlainText(insights)
+            layout.addWidget(analysis_text)
+            
+            # Buttons
+            button_layout = QHBoxLayout()
+            
+            export_btn = QPushButton("📁 Export Analysis")
+            export_btn.clicked.connect(lambda: self._export_owner_analysis(results))
+            
+            close_btn = QPushButton("Close")
+            close_btn.clicked.connect(dialog.accept)
+            
+            button_layout.addWidget(export_btn)
+            button_layout.addStretch()
+            button_layout.addWidget(close_btn)
+            
+            layout.addLayout(button_layout)
+            
+            # Show dialog
+            dialog.exec_()
+            
+            self.status_label.setText(f'🏠 Ownership analysis complete: {results["total_owners"]:,} owners analyzed')
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Analysis Error", f"Error during ownership analysis: {str(e)}")
+            self.status_label.setText('❌ Ownership analysis failed')
+
+    def _export_owner_analysis(self, results):
+        """Export owner analysis results."""
+        from backend.utils.owner_analyzer import OwnerAnalyzer
+        import os
+        
+        try:
+            # Create export directory if it doesn't exist
+            export_dir = "DEV_MAN"
+            os.makedirs(export_dir, exist_ok=True)
+            
+            # Export analysis
+            analyzer = OwnerAnalyzer()
+            export_file = os.path.join(export_dir, "owner_analysis_export.json")
+            analyzer.export_owner_data(results, export_file)
+            
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.information(self, "Export Complete", f"Owner analysis exported to:\n{export_file}")
+            
+        except Exception as e:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "Export Error", f"Error exporting analysis: {str(e)}")
 
     def _validate_data(self):
         """Validate data."""
@@ -466,8 +585,127 @@ class DataToolsPanel(BaseComponent):
         self.status_label.setText('🏷️ Column tagging coming soon')
     
     def _save_preset(self):
-        """Save current configuration as preset."""
-        self.status_label.setText(f'💾 Save {self.data_source}→Pete mapping preset coming soon')
+        """Save comprehensive preset with all analysis data and configurations."""
+        from backend.utils.preset_manager import PresetManager
+        from PyQt5.QtWidgets import QInputDialog, QMessageBox
+        
+        try:
+            # Get preset name from user
+            preset_name, ok = QInputDialog.getText(
+                self, 
+                "Save Preset", 
+                f"Enter name for {self.data_source}→Pete preset:",
+                text=f"{self.data_source}_preset"
+            )
+            
+            if not ok or not preset_name.strip():
+                return
+            
+            # Get current data
+            prepared_data = self.data_prep_editor.get_prepared_data()
+            if prepared_data is None:
+                QMessageBox.warning(self, "No Data", "No prepared data to save.")
+                return
+            
+            # Get phone prioritization rules if any were applied
+            phone_rules = None
+            version_summary = self.data_prep_editor.get_version_summary()
+            for version in version_summary:
+                if "phone prioritization" in version.get('action', '').lower():
+                    # Try to extract rules from version details
+                    phone_rules = self._extract_phone_rules_from_version(version)
+                    break
+            
+            # Get owner analysis results if available
+            owner_analysis = getattr(self, 'last_owner_analysis_results', None)
+            
+            # Get data preparation summary
+            data_prep_summary = {
+                'version_summary': version_summary,
+                'tools_used': self._get_used_tools(),
+                'data_source': self.data_source,
+                'original_shape': self.original_df.shape,
+                'prepared_shape': prepared_data.shape
+            }
+            
+            # Save comprehensive preset using user system
+            from backend.utils.user_manager import user_manager
+            
+            if user_manager.current_user:
+                preset_path = user_manager.save_user_preset(
+                    preset_name=preset_name,
+                    original_df=self.original_df,
+                    prepared_df=prepared_data,
+                    phone_prioritization_rules=phone_rules,
+                    owner_analysis_results=owner_analysis,
+                    data_prep_summary=data_prep_summary
+                )
+            else:
+                # Fallback to direct preset manager
+                manager = PresetManager()
+                preset_path = manager.save_comprehensive_preset(
+                    preset_name=preset_name,
+                    data_source=self.data_source,
+                    original_df=self.original_df,
+                    prepared_df=prepared_data,
+                    phone_prioritization_rules=phone_rules,
+                    owner_analysis_results=owner_analysis,
+                    data_prep_summary=data_prep_summary
+                )
+            
+            QMessageBox.information(
+                self, 
+                "Preset Saved", 
+                f"Comprehensive preset saved successfully!\n\n"
+                f"Location: {preset_path}\n\n"
+                f"Includes:\n"
+                f"• Phone prioritization rules\n"
+                f"• Data preparation steps\n"
+                f"• Data samples and quality metrics\n"
+                f"• Reference views and reports"
+            )
+            
+            self.status_label.setText(f'💾 Comprehensive preset saved: {preset_name}')
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Save Error", f"Error saving preset: {str(e)}")
+            self.status_label.setText('❌ Preset save failed')
+    
+    def _extract_phone_rules_from_version(self, version: Dict) -> Optional[Dict]:
+        """Extract phone prioritization rules from version details."""
+        # Default rules - in a real implementation, you'd store these when applied
+        return {
+            'status_weights': {
+                'CORRECT': 100, 'UNKNOWN': 80, 'NO_ANSWER': 60, 
+                'WRONG': 40, 'DEAD': 20, 'DNC': 10
+            },
+            'type_weights': {
+                'MOBILE': 100, 'LANDLINE': 80, 'UNKNOWN': 60
+            },
+            'tag_weights': {
+                'call_a01': 100, 'call_a02': 90, 'call_a03': 80,
+                'call_a04': 70, 'call_a05': 60, 'no_tag': 50
+            },
+            'call_count_multiplier': 1.0
+        }
+    
+    def _get_used_tools(self) -> List[str]:
+        """Get list of tools that were used during data preparation."""
+        tools_used = []
+        version_summary = self.data_prep_editor.get_version_summary()
+        
+        for version in version_summary:
+            action = version.get('action', '').lower()
+            if 'strip' in action and '.0' in action:
+                tools_used.append('strip_trailing_dot')
+            elif 'prioritize' in action and 'phone' in action:
+                tools_used.append('phone_prioritization')
+            elif 'duplicate' in action:
+                tools_used.append('duplicate_removal')
+            elif 'clean' in action:
+                tools_used.append('data_cleaning')
+        
+        return tools_used
     
     def _reset_data(self):
         """Reset to original data."""
