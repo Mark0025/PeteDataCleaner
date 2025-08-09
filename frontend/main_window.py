@@ -1317,6 +1317,9 @@ class MainWindow(QMainWindow):
     
     def _populate_owner_table_sample(self):
         """Populate the owner table with sample data."""
+        from PyQt5.QtWidgets import QTableWidgetItem
+        from PyQt5.QtCore import Qt
+        
         # Add sample rows to show the table structure
         sample_data = [
             ["John Smith", "123 Main St", "8/10", "Mobile", "2", "$450,000", "Individual", "High"],
@@ -1342,6 +1345,9 @@ class MainWindow(QMainWindow):
     
     def _populate_owner_table_full(self):
         """Populate the owner table with full owner objects data."""
+        from PyQt5.QtWidgets import QTableWidgetItem
+        from PyQt5.QtCore import Qt
+        
         if not hasattr(self, 'full_owner_objects') or not self.full_owner_objects:
             return
         
