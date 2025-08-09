@@ -207,6 +207,7 @@ class HighPerformanceProcessor:
         
         try:
             # Convert to Polars for fast processing
+            print(f"🔄 Converting to Polars for fast processing...")
             pl_df = pl.from_pandas(df)
             
             # Detect phone columns
@@ -238,9 +239,20 @@ class HighPerformanceProcessor:
                     'call_count_multiplier': 1.0
                 }
             
+            print(f"🎯 Calculating priority scores for {len(phone_cols)} phone columns...")
+            
             # Create phone metadata with priority scores
             phone_meta = []
+            total_phones = min(len(phone_cols), 30)  # Max 30 phones
+            
             for i, phone_col in enumerate(phone_cols[:30]):  # Max 30 phones
+                # Progress logging every 5 phones
+                if i % 5 == 0 or i == total_phones - 1:
+                    progress = (i + 1) / total_phones * 100
+                    elapsed = time.time() - step_start
+                    eta = (elapsed / (i + 1)) * (total_phones - i - 1) if i > 0 else 0
+                    print(f"📊 Progress: {progress:.1f}% ({i+1}/{total_phones}) - ETA: {eta:.1f}s")
+                
                 status_col = f'Phone Status {i+1}' if f'Phone Status {i+1}' in status_cols else None
                 type_col = f'Phone Type {i+1}' if f'Phone Type {i+1}' in type_cols else None
                 tag_col = f'Phone Tag {i+1}' if f'Phone Tag {i+1}' in tag_cols else None
@@ -258,12 +270,14 @@ class HighPerformanceProcessor:
                     'priority_score': priority_score
                 })
             
+            print(f"🔄 Sorting phones by priority score...")
             # Sort by priority score (highest first)
             phone_meta.sort(key=lambda x: x['priority_score'], reverse=True)
             
             print(f"🎯 Prioritizing top {max_phones} phones from {len(phone_meta)} candidates...")
             
             # Create prioritized DataFrame using Polars
+            print(f"🔄 Creating prioritized DataFrame...")
             prioritized_pl_df = pl_df.clone()
             
             # Keep only the top N phones, reorder them as Phone 1, Phone 2, etc.
@@ -276,6 +290,7 @@ class HighPerformanceProcessor:
             columns_to_keep = [col for col in pl_df.columns if not col.startswith('Phone ') or col in [f'Phone {i+1}' for i in range(max_phones)]]
             prioritized_pl_df = prioritized_pl_df.select(columns_to_keep)
             
+            print(f"🔄 Converting back to pandas...")
             # Convert back to pandas
             prioritized_df = prioritized_pl_df.to_pandas()
             
@@ -536,7 +551,7 @@ def filter_empty_columns_fast(df: pd.DataFrame, threshold: float = 0.9) -> pd.Da
 def prioritize_phones_fast(df: pd.DataFrame, max_phones: int = 5, prioritization_rules: Optional[Dict] = None) -> Tuple[pd.DataFrame, List[Dict]]:
     """Fast phone prioritization with Polars."""
     processor = HighPerformanceProcessor()
-    return processor.prioritize_phones_fast(df, max_phones)
+    return processor.prioritize_phones_fast(df, max_phones, prioritization_rules)
 
 
 def process_complete_pipeline_fast(filepath: Union[str, Path], export_excel: bool = True) -> Tuple[pd.DataFrame, Dict]:

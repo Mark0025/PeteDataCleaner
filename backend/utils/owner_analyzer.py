@@ -98,13 +98,23 @@ class OwnerAnalyzer:
         progress.update_progress(len(df))
         progress.end_current_step(len(df))
         
-        # Use original methods for now (more reliable)
-        business_entities = self._detect_business_entities(df_clean)
-        ownership_patterns = self._analyze_ownership_patterns(df_clean)
-        mailing_analysis = self._analyze_mailing_addresses(df_clean)
-        value_analysis = self._analyze_property_values(df_clean)
-        marketing_insights = self._generate_marketing_insights(df_clean)
-        owner_insights = self._generate_owner_insights(df_clean)
+        # Use ultra-fast Polars methods for maximum performance
+        if self.use_polars:
+            logger.info("🚀 Using ultra-fast Polars methods for owner analysis")
+            business_entities = self._detect_business_entities_fast(df_clean)
+            ownership_patterns = self._analyze_ownership_patterns_fast(df_clean)
+            mailing_analysis = self._analyze_mailing_addresses_fast(df_clean)
+            value_analysis = self._analyze_property_values_fast(df_clean)
+            marketing_insights = self._generate_marketing_insights_fast(df_clean)
+            owner_insights = self._generate_owner_insights_fast(df_clean)
+        else:
+            logger.info("⚠️ Using pandas methods (Polars not available)")
+            business_entities = self._detect_business_entities(df_clean)
+            ownership_patterns = self._analyze_ownership_patterns(df_clean)
+            mailing_analysis = self._analyze_mailing_addresses(df_clean)
+            value_analysis = self._analyze_property_values(df_clean)
+            marketing_insights = self._generate_marketing_insights(df_clean)
+            owner_insights = self._generate_owner_insights(df_clean)
         
         analysis_results = {
             'total_records': len(df),
@@ -194,8 +204,8 @@ class OwnerAnalyzer:
             example = {
                 'owner_name': owner_name,
                 'property_count': len(owner_properties),
-                'properties': owner_properties['Property address'].tolist()[:5],  # First 5 properties
-                'mailing_address': owner_properties['Mailing address'].iloc[0] if 'Mailing address' in owner_properties.columns else 'N/A'
+                'properties': owner_properties['Property address'].tolist()[:5] if len(owner_properties) > 0 else [],  # First 5 properties
+                'mailing_address': owner_properties['Mailing address'].iloc[0] if ('Mailing address' in owner_properties.columns and len(owner_properties) > 0) else 'N/A'
             }
             examples.append(example)
         
@@ -224,7 +234,7 @@ class OwnerAnalyzer:
         """Get examples of addresses with multiple owners."""
         examples = []
         
-        for addr, group in addr_groups:
+        for addr, group in list(addr_groups)[:5]:  # Limit to first 5 groups
             if len(group) > 1:
                 example = {
                     'address': addr,
@@ -254,7 +264,7 @@ class OwnerAnalyzer:
         return {
             'total_property_value': df['value_numeric'].sum(),
             'avg_property_value': df['value_numeric'].mean(),
-            'top_value_owners': owner_values.nlargest(10, 'total_value')[['owner_name', 'total_value', 'property_count']].to_dict('records'),
+            'top_value_owners': owner_values.nlargest(10, 'total_value')[['owner_name', 'total_value', 'property_count']].to_dict(orient='records'),
             'value_distribution': {
                 'under_100k': len(df[df['value_numeric'] < 100000]),
                 '100k_200k': len(df[(df['value_numeric'] >= 100000) & (df['value_numeric'] < 200000)]),
@@ -464,7 +474,7 @@ class OwnerAnalyzer:
                 'addresses_with_single_owner': len(addr_counts_pd[addr_counts_pd['count'] == 1]),
                 'max_owners_per_address': addr_counts_pd['count'].max(),
                 'avg_owners_per_address': addr_counts_pd['count'].mean(),
-                'multi_owner_examples': self._get_multi_owner_address_examples(df, addr_counts_pd[addr_counts_pd['count'] > 1].head(5))
+                'multi_owner_examples': []  # Simplified for fast processing
             }
         else:
             return self._analyze_mailing_addresses(df)
@@ -508,7 +518,7 @@ class OwnerAnalyzer:
             ((self.pl.col('value_numeric') >= 100000) & (self.pl.col('value_numeric') < 200000)).sum().alias('100k_200k'),
             ((self.pl.col('value_numeric') >= 200000) & (self.pl.col('value_numeric') < 500000)).sum().alias('200k_500k'),
             (self.pl.col('value_numeric') >= 500000).sum().alias('over_500k')
-        ]).to_dict('records')[0]
+        ]).to_pandas().to_dict('records')[0]
         
         return distribution
     
