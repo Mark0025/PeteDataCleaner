@@ -371,8 +371,8 @@ class DataToolsPanel(BaseComponent):
                 new_df = current_df.drop_duplicates(subset=['Property address'], keep=config['keep'])
             elif config['method'] == 'smart_seller_creation':
                 # Smart seller creation with phone prioritization
-                from backend.utils.smart_seller_creator import create_seller_groups
-                new_df = create_seller_groups(current_df)
+                from backend.utils.ownership_analysis import deduplicate_by_mailing_address
+                new_df = deduplicate_by_mailing_address(current_df)
             else:
                 new_df = current_df.drop_duplicates(keep=config['keep'])
             

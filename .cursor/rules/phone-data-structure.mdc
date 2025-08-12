@@ -1,0 +1,105 @@
+# Phone Data Structure & Pete Data Congruence
+
+## Core Principles
+
+### 1. Use Pete Data Structure
+
+Always use the Pete data structure for phone information:
+
+- `phone1`: Primary phone number (from original import)
+- `phone_type`: Mobile/Landline/Unknown
+- `phone_status`: CORRECT/WRONG/DEAD
+- `phone_tags`: call_a01, call_a02, etc.
+
+### 2. Data Congruence
+
+Stay congruent with Pete export structure. Don't create new phone data structures that don't match the original import.
+
+### 3. OwnerObject Structure
+
+The `OwnerObject` class should include Pete phone fields:
+
+```python
+@dataclass
+class OwnerObject:
+    # ... existing fields ...
+    phone1: str = ""
+    phone_type: str = ""
+    phone_status: str = ""
+    phone_tags: str = ""
+```
+
+### 4. Phone Data Utilities
+
+Use utility classes for phone data operations:
+
+- `PhoneDataUtils` for formatting
+- `PhoneDataFormatter` for display
+- `PhoneDataValidator` for validation
+
+### 5. DRY Code Principles
+
+- Don't duplicate phone data logic
+- Use utility functions for common operations
+- Keep phone data handling modular
+
+## File References
+
+Key files for phone data:
+
+- [backend/utils/owner_object_analyzer.py](mdc:backend/utils/owner_object_analyzer.py) - OwnerObject definition
+- [backend/utils/efficient_table_manager.py](mdc:backend/utils/efficient_table_manager.py) - Table display logic
+- [frontend/components/owner_dashboard/owner_dashboard.py](mdc:frontend/components/owner_dashboard/owner_dashboard.py) - Dashboard display
+
+## Common Patterns
+
+### Phone Count Formatting
+
+```python
+def format_phone_count(phone1: str, phone_status: str) -> str:
+    if not phone1 or phone1 == "":
+        return "0/0"
+    correct = 1 if phone_status == "CORRECT" else 0
+    return f"{correct}/1"
+```
+
+### Phone Quality Scoring
+
+```python
+def format_phone_quality(phone_status: str, phone_type: str) -> str:
+    if phone_status == "CORRECT":
+        return "8.0/10"
+    elif phone_status == "WRONG":
+        return "3.0/10"
+    elif phone_status == "DEAD":
+        return "1.0/10"
+    else:
+        return "5.0/10"
+```
+
+### Best Contact Method
+
+```python
+def get_best_contact_method(phone1: str, phone_type: str) -> str:
+    if not phone1:
+        return "Unknown"
+    if phone_type == "MOBILE":
+        return f"Mobile ({phone1})"
+    elif phone_type == "LANDLINE":
+        return f"Landline ({phone1})"
+    else:
+        return f"Phone ({phone1})"
+```
+
+## Critical Rules
+
+1. **Never use `get_best_contact_method()` on `OwnerObject`** - it doesn't have this field
+2. **Always check if phone fields exist** before accessing them
+3. **Use Pete structure consistently** across all modules
+4. **Test phone data display** after any changes
+5. **Keep phone data logic modular** and reusable
+   description:
+   globs:
+   alwaysApply: false
+
+---

@@ -1,0 +1,163 @@
+# DRY Code Principles & Modular Development
+
+## Core Principles
+
+### 1. Don't Repeat Yourself (DRY)
+
+- Extract common functionality into utility classes
+- Use inheritance and composition to avoid code duplication
+- Create reusable modules for shared operations
+
+### 2. Modular Code Structure
+
+- Separate concerns into distinct modules
+- Use clear interfaces between modules
+- Keep modules focused and single-purpose
+
+### 3. Class Hierarchy
+
+- Use dunder methods (`__init__`, `__str__`, `__repr__`) for object behavior
+- Create base classes for common functionality
+- Inherit from base classes to extend functionality
+
+### 4. Code Organization
+
+- Group related functionality into classes
+- Use utility functions for common operations
+- Keep main logic clean and readable
+
+## Development Workflow
+
+### 1. Analyze Before Coding
+
+- Understand existing code structure
+- Identify common patterns and operations
+- Plan modular architecture before implementation
+
+### 2. Reference Working Code
+
+- Always reference what's working before adding new features
+- Don't rewrite working code unnecessarily
+- Build on existing patterns and structures
+
+### 3. Test Incrementally
+
+- Test each change before proceeding
+- Don't make massive changes that require rewriting
+- Validate functionality at each step
+
+### 4. Use Utility Classes
+
+- Create utility classes for common operations
+- Use static methods for stateless operations
+- Keep utilities focused and reusable
+
+## File Organization
+
+### Module Structure
+
+```
+backend/utils/
+├── phone_data/
+│   ├── __init__.py
+│   ├── phone_data_utils.py
+│   ├── phone_data_formatter.py
+│   └── phone_data_validator.py
+├── owner_analysis/
+│   ├── __init__.py
+│   ├── owner_analyzer.py
+│   └── owner_formatter.py
+└── table_management/
+    ├── __init__.py
+    ├── efficient_table_manager.py
+    └── table_utils.py
+```
+
+### Class Hierarchy Example
+
+```python
+class BaseDataFormatter:
+    """Base class for data formatting operations."""
+
+    def __init__(self):
+        self.utils = self._create_utils()
+
+    def _create_utils(self):
+        """Create utility instances."""
+        raise NotImplementedError
+
+    def format_data(self, data):
+        """Format data using utilities."""
+        raise NotImplementedError
+
+class PhoneDataFormatter(BaseDataFormatter):
+    """Format phone data using Pete structure."""
+
+    def _create_utils(self):
+        return PhoneDataUtils()
+
+    def format_data(self, phone_data):
+        return self.utils.format_phone_data(phone_data)
+```
+
+## Critical Rules
+
+1. **Never duplicate code** - Extract common functionality
+2. **Use utility classes** for shared operations
+3. **Reference working code** before making changes
+4. **Test incrementally** - don't make massive changes
+5. **Keep modules focused** and single-purpose
+6. **Use inheritance** for common functionality
+7. **Create clear interfaces** between modules
+
+## Common Patterns
+
+### Utility Class Pattern
+
+```python
+class DataUtils:
+    """Utility class for data operations."""
+
+    @staticmethod
+    def format_value(value, formatter):
+        """Format value using provided formatter."""
+        return formatter(value)
+
+    @staticmethod
+    def validate_data(data, validator):
+        """Validate data using provided validator."""
+        return validator(data)
+```
+
+### Module Initialization
+
+```python
+# __init__.py
+from .phone_data_utils import PhoneDataUtils
+from .phone_data_formatter import PhoneDataFormatter
+
+__all__ = [
+    'PhoneDataUtils',
+    'PhoneDataFormatter'
+]
+```
+
+### Error Handling
+
+```python
+def safe_operation(func):
+    """Decorator for safe operations."""
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            return None
+    return wrapper
+```
+
+description:
+globs:
+alwaysApply: false
+
+---

@@ -509,157 +509,70 @@ class MainWindow(QMainWindow):
         return card
     
     def show_owner_analysis(self):
-        """Show enhanced owner analysis interface with table and features."""
+        """Show owner analysis interface using modular component."""
         self.clear_layout()
         
-        from PyQt5.QtWidgets import (
-            QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget, 
-            QTableWidgetItem, QScrollArea, QWidget, QFrame, QComboBox,
-            QLineEdit, QGridLayout, QSplitter
-        )
-        from PyQt5.QtCore import Qt
+        from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QWidget, QLabel
         from PyQt5.QtGui import QFont
         
-        # Create owner analysis widget
-        analysis_widget = QWidget()
-        analysis_layout = QVBoxLayout(analysis_widget)
-        
-        # Header with action buttons
-        header_layout = QHBoxLayout()
-        
-        header = QLabel("🏠 Enhanced Owner Analysis")
-        header.setFont(QFont("Arial", 18, QFont.Bold))
-        header.setStyleSheet("color: #667eea; margin: 20px;")
-        header_layout.addWidget(header)
-        
-        # Load full data button
-        load_btn = QPushButton("📊 Load Full Owner Data")
-        load_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #28a745;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 5px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #218838;
-            }
-        """)
-        load_btn.clicked.connect(self._load_full_owner_data)
-        header_layout.addWidget(load_btn)
-        
-        # Custom export button
-        export_btn = QPushButton("📤 Custom Export")
-        export_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #17a2b8;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 5px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #138496;
-            }
-        """)
-        export_btn.clicked.connect(self._show_custom_export_ui)
-        header_layout.addWidget(export_btn)
-        
-        analysis_layout.addLayout(header_layout)
-        
-        # Analysis summary cards
-        if self.dashboard_data and self.dashboard_data['analysis']['owner_analysis']:
-            owner_data = self.dashboard_data['analysis']['owner_analysis']
+        try:
+            # Import and use the modular owner dashboard component
+            from frontend.components.owner_dashboard.owner_dashboard import OwnerDashboard
             
-            # Create summary cards in a grid
-            summary_layout = QGridLayout()
+            # Create the owner dashboard component
+            owner_dashboard = OwnerDashboard()
             
-            summary_card1 = self._create_dashboard_card(
-                "👥 Owner Summary",
-                [
-                    ("Total Owners", f"{owner_data.get('total_owners', 0):,}"),
-                    ("Business Entities", f"{owner_data.get('business_entities', 0):,}"),
-                    ("Multi-Property", f"{owner_data.get('multi_property_owners', 0):,}")
-                ]
-            )
-            summary_layout.addWidget(summary_card1, 0, 0)
+            # Create container widget
+            container_widget = QWidget()
+            container_layout = QVBoxLayout(container_widget)
             
-            summary_card2 = self._create_dashboard_card(
-                "🎯 High-Value Targets",
-                [
-                    ("High Confidence", f"{owner_data.get('high_confidence_targets', 0):,}"),
-                    ("Total Properties", f"{owner_data.get('total_properties', 0):,}"),
-                    ("Total Value", f"${owner_data.get('total_value', 0):,.0f}")
-                ]
-            )
-            summary_layout.addWidget(summary_card2, 0, 1)
+            # Add the owner dashboard
+            container_layout.addWidget(owner_dashboard)
             
-            analysis_layout.addLayout(summary_layout)
+            # Add back button
+            back_btn = QPushButton("← Back to Dashboard")
+            back_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #667eea;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    font-size: 14px;
+                }
+                QPushButton:hover {
+                    background-color: #5a6fd8;
+                }
+            """)
+            back_btn.clicked.connect(self.show_dashboard)
+            container_layout.addWidget(back_btn)
             
-            # Filters and search
-            filter_layout = QHBoxLayout()
+            self.layout.addWidget(container_widget)
             
-            filter_label = QLabel("Filter by:")
-            filter_layout.addWidget(filter_label)
+        except ImportError as e:
+            # Fallback to simple message if component not available
+            error_label = QLabel("Owner Dashboard component not available. Please ensure all modules are properly installed.")
+            error_label.setFont(QFont("Arial", 14))
+            error_label.setStyleSheet("color: #f44336; padding: 20px; text-align: center;")
+            self.layout.addWidget(error_label)
             
-            self.owner_filter_combo = QComboBox()
-            self.owner_filter_combo.addItems(["All Owners", "Business Entities", "Multi-Property", "High Confidence"])
-            filter_layout.addWidget(self.owner_filter_combo)
-            
-            search_label = QLabel("Search:")
-            filter_layout.addWidget(search_label)
-            
-            self.owner_search = QLineEdit()
-            self.owner_search.setPlaceholderText("Search by name, address, or phone...")
-            filter_layout.addWidget(self.owner_search)
-            
-            analysis_layout.addLayout(filter_layout)
-            
-            # Owner data table
-            self.owner_table = QTableWidget()
-            self.owner_table.setColumnCount(8)
-            self.owner_table.setHorizontalHeaderLabels([
-                "Owner Name", "Property Address", "Phone Quality", "Best Contact", 
-                "Property Count", "Total Value", "LLC Status", "Skip Trace"
-            ])
-            
-            # Set table properties
-            self.owner_table.setAlternatingRowColors(True)
-            self.owner_table.setSelectionBehavior(QTableWidget.SelectRows)
-            self.owner_table.setEditTriggers(QTableWidget.NoEditTriggers)
-            
-            # Add sample data (will be replaced when full data is loaded)
-            self._populate_owner_table_sample()
-            
-            analysis_layout.addWidget(self.owner_table)
-            
-        else:
-            no_data = QLabel("No owner analysis data available. Upload data and run analysis first.")
-            no_data.setStyleSheet("color: #666; font-style: italic; padding: 20px;")
-            analysis_layout.addWidget(no_data)
-        
-        # Back button
-        back_btn = QPushButton("← Back to Dashboard")
-        back_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #667eea;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #5a6fd8;
-            }
-        """)
-        back_btn.clicked.connect(self.show_dashboard)
-        analysis_layout.addWidget(back_btn)
-        
-        self.layout.addWidget(analysis_widget)
+            # Add back button
+            back_btn = QPushButton("← Back to Dashboard")
+            back_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #667eea;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    font-size: 14px;
+                }
+                QPushButton:hover {
+                    background-color: #5a6fd8;
+                }
+            """)
+            back_btn.clicked.connect(self.show_dashboard)
+            self.layout.addWidget(back_btn)
     
     def show_export_history(self):
         """Show export history interface."""
@@ -1322,11 +1235,11 @@ class MainWindow(QMainWindow):
         
         # Add sample rows to show the table structure
         sample_data = [
-            ["John Smith", "123 Main St", "8/10", "Mobile", "2", "$450,000", "Individual", "High"],
-            ["ABC Properties LLC", "456 Oak Ave", "6/10", "Landline", "5", "$1,200,000", "LLC", "Medium"],
-            ["Mary Johnson", "789 Pine Rd", "9/10", "Mobile", "1", "$320,000", "Individual", "High"],
-            ["XYZ Holdings", "321 Elm St", "7/10", "Mobile", "8", "$2,100,000", "LLC", "High"],
-            ["Bob Wilson", "654 Maple Dr", "5/10", "Landline", "1", "$280,000", "Individual", "Medium"]
+            ["John Smith", "123 Main St", "456 Oak Ave", "8/10", "Mobile", "2", "$225,000", "$450,000", "Individual", "High"],
+            ["ABC Properties LLC", "456 Oak Ave", "789 Business Blvd", "6/10", "Landline", "5", "$240,000", "$1,200,000", "LLC", "Medium"],
+            ["Mary Johnson", "789 Pine Rd", "321 Home St", "9/10", "Mobile", "1", "$320,000", "$320,000", "Individual", "High"],
+            ["XYZ Holdings", "321 Elm St", "654 Corporate Dr", "7/10", "Mobile", "8", "$262,500", "$2,100,000", "LLC", "High"],
+            ["Bob Wilson", "654 Maple Dr", "987 Personal Ave", "5/10", "Landline", "1", "$280,000", "$280,000", "Individual", "Medium"]
         ]
         
         self.owner_table.setRowCount(len(sample_data))
@@ -1344,65 +1257,75 @@ class MainWindow(QMainWindow):
         self.owner_table.setSpan(0, 0, 1, 8)  # Span across all columns
     
     def _populate_owner_table_full(self):
-        """Populate the owner table with full owner objects data."""
+        """Populate the owner table with hierarchical owner grouping - ALL 200k+ owners."""
         from PyQt5.QtWidgets import QTableWidgetItem
         from PyQt5.QtCore import Qt
+        from backend.utils.hierarchical_owner_grouping import HierarchicalOwnerGrouper
         
         if not hasattr(self, 'full_owner_objects') or not self.full_owner_objects:
             return
         
-        # Get first 1000 owners for display (to avoid overwhelming the UI)
-        display_owners = self.full_owner_objects[:1000]
+        # Use the hierarchical owner grouping utility
+        grouper = HierarchicalOwnerGrouper()
+        owner_groups = grouper.group_owners_by_mailing_address(self.full_owner_objects)
         
-        self.owner_table.setRowCount(len(display_owners))
+        # Display all owners (no limit - show all 200k+)
+        self.owner_table.setRowCount(len(owner_groups))
         
-        for row, owner in enumerate(display_owners):
+        for row, owner_group in enumerate(owner_groups):
             # Owner Name
-            name = owner.owner_name if hasattr(owner, 'owner_name') else "Unknown"
-            self.owner_table.setItem(row, 0, QTableWidgetItem(name))
+            self.owner_table.setItem(row, 0, QTableWidgetItem(owner_group.owner_name))
             
-            # Property Address
-            address = owner.property_address if hasattr(owner, 'property_address') else "Unknown"
-            self.owner_table.setItem(row, 1, QTableWidgetItem(address))
-            
-            # Phone Quality
-            phone_quality = f"{owner.phone_quality_score}/10" if hasattr(owner, 'phone_quality_score') else "N/A"
-            self.owner_table.setItem(row, 2, QTableWidgetItem(phone_quality))
-            
-            # Best Contact
-            best_contact = owner.best_contact_method if hasattr(owner, 'best_contact_method') else "Unknown"
-            self.owner_table.setItem(row, 3, QTableWidgetItem(best_contact))
+            # Mailing Address (unique key)
+            self.owner_table.setItem(row, 1, QTableWidgetItem(owner_group.mailing_address))
             
             # Property Count
-            prop_count = str(owner.property_count) if hasattr(owner, 'property_count') else "1"
-            self.owner_table.setItem(row, 4, QTableWidgetItem(prop_count))
+            self.owner_table.setItem(row, 2, QTableWidgetItem(str(owner_group.property_count)))
             
-            # Total Value
-            total_value = f"${owner.total_property_value:,.0f}" if hasattr(owner, 'total_property_value') else "$0"
-            self.owner_table.setItem(row, 5, QTableWidgetItem(total_value))
+            # Total Portfolio Value
+            total_value = f"${owner_group.total_value:,.0f}" if owner_group.total_value else "$0"
+            self.owner_table.setItem(row, 3, QTableWidgetItem(total_value))
             
-            # LLC Status
-            llc_status = "LLC" if hasattr(owner, 'is_business_owner') and owner.is_business_owner else "Individual"
-            self.owner_table.setItem(row, 6, QTableWidgetItem(llc_status))
+            # Phone Quality
+            phone_quality = f"{owner_group.phone_quality:.1f}/10" if owner_group.phone_quality else "N/A"
+            self.owner_table.setItem(row, 4, QTableWidgetItem(phone_quality))
+            
+            # Phone Count
+            phone_count = f"{owner_group.correct_phones}/{owner_group.phone_count}"
+            self.owner_table.setItem(row, 5, QTableWidgetItem(phone_count))
+            
+            # Best Contact
+            best_contact = owner_group.best_contact if owner_group.best_contact else "Unknown"
+            self.owner_table.setItem(row, 6, QTableWidgetItem(best_contact))
+            
+            # Owner Type
+            owner_type = "LLC/Business" if owner_group.is_business else "Individual"
+            self.owner_table.setItem(row, 7, QTableWidgetItem(owner_type))
             
             # Skip Trace Priority
-            if hasattr(owner, 'confidence_score'):
-                if owner.confidence_score >= 0.8:
+            if owner_group.confidence_score:
+                if owner_group.confidence_score >= 0.8:
                     priority = "High"
-                elif owner.confidence_score >= 0.6:
+                elif owner_group.confidence_score >= 0.6:
                     priority = "Medium"
                 else:
                     priority = "Low"
             else:
                 priority = "Unknown"
-            self.owner_table.setItem(row, 7, QTableWidgetItem(priority))
+            self.owner_table.setItem(row, 8, QTableWidgetItem(priority))
+            
+            # Property Addresses (comma-separated list)
+            prop_addresses = ", ".join([p['property_address'] for p in owner_group.properties[:3]])
+            if len(owner_group.properties) > 3:
+                prop_addresses += f" (+{len(owner_group.properties) - 3} more)"
+            self.owner_table.setItem(row, 9, QTableWidgetItem(prop_addresses))
         
-        # Add note about total count
-        note_item = QTableWidgetItem(f"📊 Showing first 1,000 of {len(self.full_owner_objects):,} total owners")
+        # Add summary note
+        note_item = QTableWidgetItem(f"📊 Showing ALL {len(owner_groups):,} owners grouped by mailing address (sorted by property count)")
         note_item.setBackground(Qt.lightGray)
         self.owner_table.insertRow(0)
         self.owner_table.setItem(0, 0, note_item)
-        self.owner_table.setSpan(0, 0, 1, 8)  # Span across all columns
+        self.owner_table.setSpan(0, 0, 1, 10)  # Span across all columns
     
     def _show_custom_export_ui(self):
         """Show the custom export UI for owner data."""
@@ -1423,15 +1346,31 @@ class MainWindow(QMainWindow):
                 # Convert owner objects to exportable format
                 export_data = []
                 for owner in self.full_owner_objects[:1000]:  # Limit for export
+                    # Get owner name
+                    if owner.individual_name:
+                        owner_name = owner.individual_name
+                    elif owner.business_name:
+                        owner_name = owner.business_name
+                    else:
+                        owner_name = "Unknown"
+                    
+                    # Get property address
+                    if owner.property_addresses:
+                        property_address = owner.property_addresses[0]
+                    elif owner.property_address:
+                        property_address = owner.property_address
+                    else:
+                        property_address = "Unknown"
+                    
                     export_data.append({
-                        'owner_name': getattr(owner, 'owner_name', 'Unknown'),
-                        'property_address': getattr(owner, 'property_address', 'Unknown'),
-                        'phone_quality': getattr(owner, 'phone_quality_score', 0),
-                        'best_contact': getattr(owner, 'best_contact_method', 'Unknown'),
-                        'property_count': getattr(owner, 'property_count', 1),
-                        'total_value': getattr(owner, 'total_property_value', 0),
-                        'llc_status': 'LLC' if getattr(owner, 'is_business_owner', False) else 'Individual',
-                        'confidence_score': getattr(owner, 'confidence_score', 0)
+                        'owner_name': owner_name,
+                        'property_address': property_address,
+                        'phone_quality': owner.phone_quality_score,
+                        'best_contact': owner.best_contact_method or 'Unknown',
+                        'property_count': owner.property_count or 1,
+                        'total_value': owner.total_property_value or 0,
+                        'llc_status': 'LLC' if owner.is_business_owner else 'Individual',
+                        'confidence_score': owner.confidence_score or 0
                     })
                 
                 export_ui.set_export_data(export_data)

@@ -19,7 +19,7 @@ import sys
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from backend.utils.owner_object_analyzer import OwnerObject, OwnerObjectAnalyzer
+from backend.utils.enhanced_owner_analyzer import EnhancedOwnerObject, EnhancedOwnerAnalyzer
 
 
 class OwnerPersistenceManager:
@@ -43,7 +43,7 @@ class OwnerPersistenceManager:
         
         self.logger = logger
     
-    def save_owner_objects(self, owner_objects: List[OwnerObject], 
+    def save_owner_objects(self, owner_objects: List[EnhancedOwnerObject], 
                           dataset_name: str = None, 
                           create_backup: bool = True) -> str:
         """
@@ -70,27 +70,27 @@ class OwnerPersistenceManager:
         if create_backup:
             self._create_backup(dataset_name)
         
-        # Filter out non-OwnerObject instances
+        # Filter out non-EnhancedOwnerObject instances
         valid_objects = [obj for obj in owner_objects if hasattr(obj, 'individual_name')]
-        self.logger.info(f"📊 Found {len(valid_objects):,} valid Owner Objects out of {len(owner_objects):,} total")
+        self.logger.info(f"📊 Found {len(valid_objects):,} valid Enhanced Owner Objects out of {len(owner_objects):,} total")
         
         if len(valid_objects) == 0:
-            self.logger.warning("⚠️ No valid Owner Objects found to save!")
+            self.logger.warning("⚠️ No valid Enhanced Owner Objects found to save!")
             # Log sample of invalid objects for debugging
             invalid_objects = [obj for obj in owner_objects if not hasattr(obj, 'individual_name')]
             if invalid_objects:
                 self.logger.info(f"🔍 Sample invalid objects: {invalid_objects[:3]}")
         
-        # Save Owner Objects as pickle (preserves all object attributes)
+        # Save Enhanced Owner Objects as pickle (preserves all object attributes)
         owner_objects_path = save_dir / "owner_objects.pkl"
         with open(owner_objects_path, 'wb') as f:
             pickle.dump(valid_objects, f)
-        self.logger.info(f"✅ Saved {len(valid_objects):,} Owner Objects to pickle: {owner_objects_path}")
+        self.logger.info(f"✅ Saved {len(valid_objects):,} Enhanced Owner Objects to pickle: {owner_objects_path}")
         
         # Save as JSON for human readability
         owner_objects_json = []
         for obj in valid_objects:  # Use valid_objects instead of owner_objects
-            # Skip if not an OwnerObject instance
+            # Skip if not an EnhancedOwnerObject instance
             if not hasattr(obj, 'individual_name'):
                 continue
                 
@@ -273,7 +273,7 @@ class OwnerPersistenceManager:
         
         return str(save_dir)
     
-    def load_owner_objects(self, dataset_name: str) -> List[OwnerObject]:
+    def load_owner_objects(self, dataset_name: str) -> List[EnhancedOwnerObject]:
         """
         Load Owner Objects from persistent storage.
         
@@ -281,7 +281,7 @@ class OwnerPersistenceManager:
             dataset_name: Name of the dataset to load
             
         Returns:
-            List[OwnerObject]: Loaded Owner Objects
+            List[EnhancedOwnerObject]: Loaded Enhanced Owner Objects
         """
         load_dir = self.base_dir / "owner_objects" / dataset_name
         
@@ -305,7 +305,7 @@ class OwnerPersistenceManager:
             # Reconstruct Owner Objects
             owner_objects = []
             for data in owner_objects_data:
-                obj = OwnerObject(
+                obj = EnhancedOwnerObject(
                     individual_name=data.get('individual_name', ''),
                     business_name=data.get('business_name', ''),
                     mailing_address=data.get('mailing_address', ''),
@@ -421,9 +421,9 @@ class OwnerPersistenceManager:
             shutil.copytree(existing_dir, backup_dir, dirs_exist_ok=True)
             self.logger.info(f"✅ Created backup at {backup_dir}")
     
-    def _generate_summary(self, owner_objects: List[OwnerObject]) -> Dict[str, Any]:
+    def _generate_summary(self, owner_objects: List[EnhancedOwnerObject]) -> Dict[str, Any]:
         """Generate summary statistics for Owner Objects."""
-        # Filter out non-OwnerObject instances
+        # Filter out non-EnhancedOwnerObject instances
         valid_objects = [obj for obj in owner_objects if hasattr(obj, 'individual_name')]
         total_owners = len(valid_objects)
         
@@ -479,7 +479,7 @@ class OwnerPersistenceManager:
         }
 
 
-def save_property_owners_persistent(owner_objects: List[OwnerObject], 
+def save_property_owners_persistent(owner_objects: List[EnhancedOwnerObject], 
                                    enhanced_df: pd.DataFrame = None,
                                    dataset_name: str = None) -> Dict[str, str]:
     """
@@ -509,15 +509,15 @@ def save_property_owners_persistent(owner_objects: List[OwnerObject],
     }
 
 
-def load_property_owners_persistent(dataset_name: str = None) -> Tuple[List[OwnerObject], Optional[pd.DataFrame]]:
+def load_property_owners_persistent(dataset_name: str = None) -> Tuple[List[EnhancedOwnerObject], Optional[pd.DataFrame]]:
     """
     Convenience function to load Property Owners data persistently.
     
     Args:
         dataset_name: Name of the dataset to load (uses latest if None)
         
-    Returns:
-        Tuple[List[OwnerObject], Optional[pd.DataFrame]]: Loaded Owner Objects and enhanced dataframe
+            Returns:
+            Tuple[List[EnhancedOwnerObject], Optional[pd.DataFrame]]: Loaded Enhanced Owner Objects and enhanced dataframe
     """
     manager = OwnerPersistenceManager()
     
