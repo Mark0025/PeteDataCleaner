@@ -188,6 +188,10 @@ def monitor_cpu_usage(func: Callable):
             return result
         finally:
             cpu_monitor.end_profile()
+    
+    # Preserve the original function signature
+    import functools
+    functools.update_wrapper(wrapper, func)
     return wrapper
 
 
