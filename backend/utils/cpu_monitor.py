@@ -50,7 +50,7 @@ class CPUProfile:
 class CPUMonitor:
     """Monitor CPU usage and profile operations."""
     
-    def __init__(self, log_interval: float = 5.0):
+    def __init__(self, log_interval: float = 30.0):  # Changed from 5.0 to 30.0 seconds
         self.log_interval = log_interval
         self.monitoring = False
         self.monitor_thread = None
@@ -81,10 +81,10 @@ class CPUMonitor:
                 cpu_percent = psutil.cpu_percent(interval=1.0)
                 memory_mb = psutil.virtual_memory().used / (1024 * 1024)
                 
-                if cpu_percent > 50:  # Log high CPU usage
-                    logger.warning(f"🔥 High CPU usage detected: {cpu_percent:.1f}% | Memory: {memory_mb:.1f}MB")
-                elif cpu_percent > 20:  # Log moderate CPU usage
-                    logger.info(f"⚡ Moderate CPU usage: {cpu_percent:.1f}% | Memory: {memory_mb:.1f}MB")
+                if cpu_percent > 80:  # Only log very high CPU usage
+                    logger.warning(f"🔥 Very high CPU usage detected: {cpu_percent:.1f}% | Memory: {memory_mb:.1f}MB")
+                elif cpu_percent > 60:  # Log high CPU usage less frequently
+                    logger.info(f"⚡ High CPU usage: {cpu_percent:.1f}% | Memory: {memory_mb:.1f}MB")
                 
                 time.sleep(self.log_interval)
                 

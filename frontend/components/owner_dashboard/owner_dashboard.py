@@ -19,6 +19,7 @@ from loguru import logger
 from backend.utils.owner_persistence_manager import load_property_owners_persistent
 from backend.utils.efficient_table_manager import EfficientTableManager, format_currency, format_phone_quality_pete, format_phone_count_pete, get_owner_name, get_owner_type, get_confidence_level, get_best_contact_method_pete
 from backend.utils.cpu_monitor import monitor_cpu_usage, start_cpu_monitoring, stop_cpu_monitoring, log_cpu_summary
+from .owner_dashboard_utils import get_owner_dashboard_utils
 
 
 class OwnerDashboard(QWidget):
@@ -28,10 +29,17 @@ class OwnerDashboard(QWidget):
         super().__init__(parent)
         self.owner_objects = []
         self.table_manager = None
+        
+        # Initialize utilities
+        self.utils = get_owner_dashboard_utils()
+        
         self.setup_ui()
         
         # Start CPU monitoring
         start_cpu_monitoring()
+        
+        # Add performance optimization
+        self._setup_performance_optimization()
     
     def setup_ui(self):
         """Setup the dashboard UI."""
@@ -460,41 +468,71 @@ class OwnerDashboard(QWidget):
         owner_type_filter = self.owner_filter_combo.currentText()
         search_term = self.search_input.text()
         
-        # Create filter function
-        def filter_func(item):
-            # Owner type filter
-            if owner_type_filter == "Business Entities" and not item.is_business_owner:
-                return False
-            elif owner_type_filter == "Individual Owners" and item.is_business_owner:
-                return False
-            elif owner_type_filter == "Multi-Property" and item.property_count <= 1:
-                return False
-            elif owner_type_filter == "High Confidence" and item.confidence_score < 0.8:
-                return False
-            
-            # Search filter
-            if search_term:
-                search_term_lower = search_term.lower()
-                searchable_fields = [
-                    get_owner_name(item),
-                    item.mailing_address or '',
-                    item.property_address or '',
-                    ', '.join(item.property_addresses) if hasattr(item, 'property_addresses') and item.property_addresses else ''
-                ]
-                
-                if not any(search_term_lower in field.lower() for field in searchable_fields):
-                    return False
-            
-            return True
+        # Create filters dictionary
+        filters = {
+            'owner_type': owner_type_filter,
+            'search_term': search_term
+        }
         
-        # Apply filter
-        self.table_manager.apply_filter(filter_func)
+        # Use utility to apply filters
+        self.filtered_owners = self.utils['filter'].apply_filters(self.owner_objects, filters)
+        
+        # Update table with filtered data
+        self.table_manager.set_data(self.filtered_owners, self.get_column_configs())
+        
+        # Update pagination controls
         self.update_pagination_controls()
+        
+        # Update summary cards with filtered data
+        if hasattr(self, 'filtered_owners') and self.filtered_owners:
+            stats = self.utils['analyzer'].analyze_owners(self.filtered_owners)
+            self.update_summary_cards(stats)
     
     def export_data(self):
         """Export the current filtered data."""
-        # TODO: Implement export functionality
-        QMessageBox.information(self, "Export", "Export functionality coming soon!")
+        if not self.owner_objects:
+            QMessageBox.warning(self, "Export", "No data to export!")
+            return
+        
+        # Get current filtered data
+        current_data = self.owner_objects
+        if hasattr(self, 'filtered_owners') and self.filtered_owners:
+            current_data = self.filtered_owners
+        
+        # Show export format selection
+        from PyQt5.QtWidgets import QInputDialog
+        format_type, ok = QInputDialog.getItem(
+            self, "Export Format", "Select export format:",
+            ["csv", "xlsx", "json"], 0, False
+        )
+        
+        if ok and format_type:
+            # Use utility to export
+            success = self.utils['exporter'].export_data(
+                current_data, format_type, self.get_column_configs(), self
+            )
+            
+            if success:
+                logger.info(f"Exported {len(current_data):,} owners to {format_type}")
+    
+    def _setup_performance_optimization(self):
+        """Setup performance optimizations to reduce CPU usage."""
+        # Set up periodic cache clearing
+        from PyQt5.QtCore import QTimer
+        
+        # Clear caches every 5 minutes to prevent memory buildup
+        self.cache_clear_timer = QTimer()
+        self.cache_clear_timer.timeout.connect(self._clear_all_caches)
+        self.cache_clear_timer.start(300000)  # 5 minutes
+        
+        logger.info("Performance optimization setup complete")
+    
+    def _clear_all_caches(self):
+        """Clear all utility caches to free memory."""
+        self.utils['sorter'].clear_cache()
+        self.utils['filter'].clear_cache()
+        self.utils['analyzer'].clear_cache()
+        logger.debug("All utility caches cleared")
 
 
 class LoadOwnerDataThread(QThread):
