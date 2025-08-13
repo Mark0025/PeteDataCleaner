@@ -298,16 +298,25 @@ class OwnerDashboard(QWidget):
     
     def update_summary_cards(self, stats: Dict[str, Any]):
         """Update summary cards with statistics."""
-        # Find the value labels in the cards
-        total_owners_label = self.total_owners_card.findChildren(QLabel)[1]
-        total_properties_label = self.total_properties_card.findChildren(QLabel)[1]
-        total_value_label = self.total_value_card.findChildren(QLabel)[1]
-        high_confidence_label = self.high_confidence_card.findChildren(QLabel)[1]
-        
-        total_owners_label.setText(f"{stats['total_owners']:,}")
-        total_properties_label.setText(f"{stats['total_properties']:,}")
-        total_value_label.setText(f"${stats['total_value']:,.0f}")
-        # high_confidence_label.setText(f"{stats['high_confidence_targets']:,}")
+        try:
+            # Find the value labels in the cards
+            total_owners_label = self.total_owners_card.findChildren(QLabel)[1]
+            total_properties_label = self.total_properties_card.findChildren(QLabel)[1]
+            total_value_label = self.total_value_card.findChildren(QLabel)[1]
+            # high_confidence_label = self.high_confidence_card.findChildren(QLabel)[1]
+            
+            # Safely update labels with error handling
+            if 'total_owners' in stats:
+                total_owners_label.setText(f"{stats['total_owners']:,}")
+            if 'total_properties' in stats:
+                total_properties_label.setText(f"{stats['total_properties']:,}")
+            if 'total_value' in stats:
+                total_value_label.setText(f"${stats['total_value']:,.0f}")
+            # if 'high_confidence_targets' in stats:
+            #     high_confidence_label.setText(f"{stats['high_confidence_targets']:,}")
+        except Exception as e:
+            logger.error(f"Failed to update summary cards: {e}")
+            # Continue without updating cards
     
     def populate_owner_table(self, owner_objects: List[Any]):
         """Populate the owner table using efficient manager."""
@@ -462,32 +471,43 @@ class OwnerDashboard(QWidget):
     
     def apply_filters(self):
         """Apply current filters to the table."""
-        if not self.table_manager or not self.owner_objects:
-            return
-        
-        # Get filter values
-        owner_type_filter = self.owner_filter_combo.currentText()
-        search_term = self.search_input.text()
-        
-        # Create filters dictionary
-        filters = {
-            'owner_type': owner_type_filter,
-            'search_term': search_term
-        }
-        
-        # Use utility to apply filters
-        self.filtered_owners = self.utils['filter'].apply_filters(self.owner_objects, filters)
-        
-        # Update table with filtered data
-        self.table_manager.set_data(self.filtered_owners, self.get_column_configs())
-        
-        # Update pagination controls
-        self.update_pagination_controls()
-        
-        # Update summary cards with filtered data
-        if hasattr(self, 'filtered_owners') and self.filtered_owners:
-            stats = self.utils['analyzer'].analyze_owners(self.filtered_owners)
-            self.update_summary_cards(stats)
+        try:
+            if not self.table_manager or not self.owner_objects:
+                return
+            
+            # Get filter values
+            owner_type_filter = self.owner_filter_combo.currentText()
+            search_term = self.search_input.text()
+            
+            # Create filters dictionary
+            filters = {
+                'owner_type': owner_type_filter,
+                'search_term': search_term
+            }
+            
+            # Use utility to apply filters
+            self.filtered_owners = self.utils['filter'].apply_filters(self.owner_objects, filters)
+            
+            # Update table with filtered data
+            self.table_manager.set_data(self.filtered_owners, self.get_column_configs())
+            
+            # Update pagination controls
+            self.update_pagination_controls()
+            
+            # Update summary cards with filtered data
+            if hasattr(self, 'filtered_owners') and self.filtered_owners:
+                try:
+                    stats = self.utils['analyzer'].analyze_owners(self.filtered_owners)
+                    self.update_summary_cards(stats)
+                except Exception as e:
+                    logger.error(f"Failed to update summary cards: {e}")
+                    # Continue without updating summary cards
+                    
+        except Exception as e:
+            logger.error(f"Filter application failed: {e}")
+            # Show user-friendly error message
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Filter Error", f"Failed to apply filters: {str(e)}")
     
     def export_data(self):
         """Export the current filtered data."""
