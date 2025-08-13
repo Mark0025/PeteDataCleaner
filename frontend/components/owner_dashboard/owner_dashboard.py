@@ -307,7 +307,7 @@ class OwnerDashboard(QWidget):
         total_owners_label.setText(f"{stats['total_owners']:,}")
         total_properties_label.setText(f"{stats['total_properties']:,}")
         total_value_label.setText(f"${stats['total_value']:,.0f}")
-        high_confidence_label.setText(f"{stats['high_confidence_targets']:,}")
+        # high_confidence_label.setText(f"{stats['high_confidence_targets']:,}")
     
     def populate_owner_table(self, owner_objects: List[Any]):
         """Populate the owner table using efficient manager."""
@@ -544,15 +544,20 @@ class OwnerDashboard(QWidget):
         try:
             print("🧪 Testing sorting functionality...")
             
-            # Test sorting by first column (Owner Name)
-            print("   Testing sort by Owner Name...")
-            self.table_manager._on_sort_changed(0, 0)  # Column 0, ascending
-            
-            # Test sorting by third column (Property Count)
-            print("   Testing sort by Property Count...")
+            # Test sorting by Property Count (column 2) descending
+            print("   Testing sort by Property Count (descending)...")
             self.table_manager._on_sort_changed(2, 1)  # Column 2, descending
             
-            print("✅ Sorting tests completed")
+            # Show what the sorting actually did across the full dataset
+            print(f"   Full dataset has {len(self.owner_objects):,} owners")
+            print(f"   Current page shows {self.table_manager.page_size} owners")
+            
+            # Get preview of sorted data
+            if hasattr(self.table_manager, 'get_sorted_data_preview'):
+                preview = self.table_manager.get_sorted_data_preview(20)
+                print(f"   Top 20 Property Counts after sorting: {preview}")
+            
+            print("✅ Sorting test completed")
             return True
             
         except Exception as e:

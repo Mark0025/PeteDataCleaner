@@ -104,6 +104,10 @@ class EfficientTableManager(QObject):
         # Setup columns
         self._setup_columns(column_configs)
         
+        # Apply current sorting if any
+        if hasattr(self, 'sort_column') and hasattr(self, 'sort_order'):
+            self._sort_data()
+        
         # Calculate pagination
         self.total_pages = math.ceil(len(self.filtered_data) / self.page_size)
         self.current_page = 0
@@ -267,6 +271,37 @@ class EfficientTableManager(QObject):
             'has_next': self.current_page < self.total_pages - 1,
             'has_prev': self.current_page > 0
         }
+    
+    def get_sorted_data_preview(self, count: int = 10) -> List[Any]:
+        """Get preview of sorted data for debugging."""
+        if not self.filtered_data:
+            return []
+        
+        # Get the first 'count' items from the sorted dataset
+        preview = self.filtered_data[:count]
+        
+        # Extract key values for the current sort column
+        if hasattr(self, 'sort_column') and self.sort_column < len(self.column_configs):
+            config = self.column_configs[self.sort_column]
+            key_func = config.get('sort_key', config['key'])
+            
+            if config.get('numeric', False):
+                values = []
+                for item in preview:
+                    try:
+                        value = key_func(item) if callable(key_func) else getattr(item, key_func, 0)
+                        values.append(float(value) if value is not None else 0.0)
+                    except (ValueError, TypeError):
+                        values.append(0.0)
+                return values
+            else:
+                values = []
+                for item in preview:
+                    value = key_func(item) if callable(key_func) else getattr(item, key_func, '')
+                    values.append(str(value) if value is not None else '')
+                return values
+        
+        return []
 
 
 # Utility functions for common data formatting
