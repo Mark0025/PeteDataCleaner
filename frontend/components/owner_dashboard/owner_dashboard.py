@@ -564,8 +564,21 @@ class OwnerDashboard(QWidget):
         try:
             print("🧪 Testing sorting functionality...")
             
+            # Show current dataset state
+            if hasattr(self.table_manager, 'get_dataset_summary'):
+                summary = self.table_manager.get_dataset_summary()
+                print(f"📊 Dataset Summary:")
+                print(f"   Total owners: {summary['total_items']:,}")
+                print(f"   Filtered owners: {summary['filtered_items']:,}")
+                print(f"   Current page: {summary['current_page']} of {summary['total_pages']}")
+                print(f"   Page size: {summary['page_size']:,}")
+                print(f"   Is sorted: {summary['is_sorted']}")
+                if summary['is_sorted']:
+                    print(f"   Sort column: {summary['sort_column']}")
+                    print(f"   Sort order: {summary['sort_order']}")
+            
             # Test sorting by Property Count (column 2) descending
-            print("   Testing sort by Property Count (descending)...")
+            print("\n🔍 Testing sort by Property Count (descending)...")
             self.table_manager._on_sort_changed(2, 1)  # Column 2, descending
             
             # Show what the sorting actually did across the full dataset

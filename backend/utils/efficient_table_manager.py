@@ -174,10 +174,13 @@ class EfficientTableManager(QObject):
         self.sort_column = column
         self.sort_order = order
         
-        # Sort data
+        # Sort the ENTIRE dataset
         self._sort_data()
         
-        # Reload current page
+        # Reset to page 1 after sorting
+        self.current_page = 0
+        
+        # Reload first page of sorted data
         self._load_current_page()
     
     def _sort_data(self):
@@ -218,25 +221,35 @@ class EfficientTableManager(QObject):
                 self.filtered_data.sort(key=lambda x: str(getattr(x, key_func, '') or ''), reverse=reverse)
     
     def apply_filter(self, filter_func: Callable[[Any], bool]):
-        """Apply filter to data."""
+        """Apply filter to ENTIRE dataset."""
+        # Apply filter to full dataset
         self.filtered_data = [item for item in self.all_data if filter_func(item)]
         
-        # Reset pagination
+        # Apply current sorting to filtered results
+        if hasattr(self, 'sort_column') and hasattr(self, 'sort_order'):
+            self._sort_data()
+        
+        # Reset pagination to page 1
         self.total_pages = math.ceil(len(self.filtered_data) / self.page_size)
         self.current_page = 0
         
-        # Reload data
+        # Reload first page of filtered/sorted data
         self._load_current_page()
     
     def clear_filter(self):
-        """Clear all filters."""
+        """Clear all filters and show full dataset."""
+        # Restore full dataset
         self.filtered_data = self.all_data.copy()
         
-        # Reset pagination
+        # Apply current sorting to full dataset
+        if hasattr(self, 'sort_column') and hasattr(self, 'sort_order'):
+            self._sort_data()
+        
+        # Reset pagination to page 1
         self.total_pages = math.ceil(len(self.filtered_data) / self.page_size)
         self.current_page = 0
         
-        # Reload data
+        # Reload first page of sorted data
         self._load_current_page()
     
     def next_page(self):
@@ -302,6 +315,20 @@ class EfficientTableManager(QObject):
                 return values
         
         return []
+    
+    def get_dataset_summary(self) -> Dict[str, Any]:
+        """Get summary of current dataset state."""
+        return {
+            'total_items': len(self.all_data),
+            'filtered_items': len(self.filtered_data),
+            'current_page': self.current_page + 1,
+            'total_pages': self.total_pages,
+            'page_size': self.page_size,
+            'is_sorted': hasattr(self, 'sort_column') and self.sort_column >= 0,
+            'sort_column': getattr(self, 'sort_column', -1),
+            'sort_order': getattr(self, 'sort_order', None),
+            'has_filters': len(self.filtered_data) != len(self.all_data)
+        }
 
 
 # Utility functions for common data formatting
