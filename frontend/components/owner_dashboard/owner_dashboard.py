@@ -183,6 +183,9 @@ class OwnerDashboard(QWidget):
         # Create efficient table manager
         self.table_manager = EfficientTableManager(self.owner_table, page_size=1000)
         
+        # Ensure sorting is enabled
+        self.owner_table.setSortingEnabled(True)
+        
         # Setup click handlers
         self.setup_table_click_handlers()
         
@@ -259,7 +262,6 @@ class OwnerDashboard(QWidget):
         
         layout.addLayout(button_layout)
     
-    @monitor_cpu_usage
     def load_owner_data(self):
         """Load all owner data from persistence manager."""
         self.load_button.setEnabled(False)
@@ -307,7 +309,6 @@ class OwnerDashboard(QWidget):
         total_value_label.setText(f"${stats['total_value']:,.0f}")
         high_confidence_label.setText(f"{stats['high_confidence_targets']:,}")
     
-    @monitor_cpu_usage
     def populate_owner_table(self, owner_objects: List[Any]):
         """Populate the owner table using efficient manager."""
         if not self.table_manager:
@@ -533,6 +534,32 @@ class OwnerDashboard(QWidget):
         self.utils['filter'].clear_cache()
         self.utils['analyzer'].clear_cache()
         logger.debug("All utility caches cleared")
+    
+    def test_sorting(self):
+        """Test sorting functionality for debugging."""
+        if not self.table_manager or not self.owner_objects:
+            print("❌ No table manager or owner objects to test sorting")
+            return False
+        
+        try:
+            print("🧪 Testing sorting functionality...")
+            
+            # Test sorting by first column (Owner Name)
+            print("   Testing sort by Owner Name...")
+            self.table_manager._on_sort_changed(0, 0)  # Column 0, ascending
+            
+            # Test sorting by third column (Property Count)
+            print("   Testing sort by Property Count...")
+            self.table_manager._on_sort_changed(2, 1)  # Column 2, descending
+            
+            print("✅ Sorting tests completed")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Sorting test failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
 
 class LoadOwnerDataThread(QThread):

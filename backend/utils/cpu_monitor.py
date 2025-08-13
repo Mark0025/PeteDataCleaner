@@ -191,8 +191,7 @@ def monitor_cpu_usage(func: Callable):
     
     # Preserve the original function signature properly
     import functools
-    functools.wraps(func)(wrapper)
-    return wrapper
+    return functools.wraps(func)(wrapper)
 
 
 def start_cpu_monitoring():
