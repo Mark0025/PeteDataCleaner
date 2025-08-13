@@ -188,10 +188,30 @@ class EfficientTableManager(QObject):
         # Sort data
         reverse = (self.sort_order == SortOrder.DESCENDING)
         
-        if callable(key_func):
-            self.filtered_data.sort(key=lambda x: key_func(x), reverse=reverse)
+        # Handle numeric sorting properly
+        if config.get('numeric', False):
+            # For numeric columns, convert to float for proper sorting
+            def numeric_key(x):
+                try:
+                    value = key_func(x) if callable(key_func) else getattr(x, key_func, 0)
+                    return float(value) if value is not None else 0.0
+                except (ValueError, TypeError):
+                    return 0.0
+            
+            # Debug: Print first few values to see what we're sorting
+            print(f"🔍 Sorting numeric column '{config['name']}' (reverse={reverse})")
+            print(f"   Sample values: {[numeric_key(x) for x in self.filtered_data[:5]]}")
+            
+            self.filtered_data.sort(key=numeric_key, reverse=reverse)
+            
+            # Debug: Print first few sorted values
+            print(f"   After sorting: {[numeric_key(x) for x in self.filtered_data[:5]]}")
         else:
-            self.filtered_data.sort(key=lambda x: getattr(x, key_func, ''), reverse=reverse)
+            # For non-numeric columns, use string sorting
+            if callable(key_func):
+                self.filtered_data.sort(key=lambda x: str(key_func(x) or ''), reverse=reverse)
+            else:
+                self.filtered_data.sort(key=lambda x: str(getattr(x, key_func, '') or ''), reverse=reverse)
     
     def apply_filter(self, filter_func: Callable[[Any], bool]):
         """Apply filter to data."""
